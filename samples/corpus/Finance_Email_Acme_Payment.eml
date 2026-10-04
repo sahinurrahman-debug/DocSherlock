@@ -1,0 +1,18 @@
+From: Priya Nair <priya.nair@northwind.example>
+To: Accounts Payable <ap@northwind.example>
+Date: Fri, 02 Feb 2024 10:21:00 +0000
+Subject: Acme invoice 1187 - payment scheduling
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hi team,
+
+I have scheduled the Acme Freight payment run. Per our contract, Acme invoice=
+s are due Net 30, so the transfer will go out 30 days after the invoice date.
+
+Please let me know if procurement has any objection. The invoice total is $45=
+,000.
+
+Thanks,
+Priya

@@ -1,0 +1,12 @@
+[
+  {"name": "payment terms", "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx", "Finance_Email_Acme_Payment.eml"], "values": ["Net 30", "Net 45"]},
+  {"name": "termination notice", "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"], "values": ["60", "90"]},
+  {"name": "contract value", "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"], "values": ["$480,000", "$540,000"]},
+  {"name": "on-time SLA", "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"], "values": ["97%", "95%"]},
+  {"name": "headcount", "docs": ["Annual_Report_2023_scanned.pdf", "Board_Minutes_2024-06-12_scan.png"], "values": ["142", "128"]},
+  {"name": "password rotation", "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"], "values": ["90 days", "60 days"]},
+  {"name": "incident reporting", "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"], "values": ["24 hours", "48 hours"]},
+  {"name": "MFA", "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"], "values": []},
+  {"name": "outage start", "docs": ["Incident_Report_INC-4471.md", "Ops_Postmortem_Portal_Outage.txt"], "values": ["September 14, 2023", "September 15, 2023"]},
+  {"name": "outage duration", "docs": ["Incident_Report_INC-4471.md", "Ops_Postmortem_Portal_Outage.txt"], "values": ["3 hours", "4 hours"]}
+]

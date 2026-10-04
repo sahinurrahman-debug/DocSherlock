@@ -1,0 +1,138 @@
+[
+ {
+  "q": "How often must eyewash stations be tested?",
+  "expect": "conflict",
+  "values": [
+   "weekly",
+   "every day"
+  ],
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ]
+ },
+ {
+  "q": "What is the spill reporting threshold?",
+  "expect": "conflict",
+  "values": [
+   "500 mL",
+   "250 mL"
+  ],
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ]
+ },
+ {
+  "q": "Within how many minutes must a large spill be reported?",
+  "expect": "conflict",
+  "values": [
+   "15 minutes",
+   "30 minutes"
+  ],
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ]
+ },
+ {
+  "q": "How much is the Meridian Foundation grant?",
+  "expect": "conflict",
+  "values": [
+   "$1,250,000",
+   "$1.5 million"
+  ],
+  "docs": [
+   "Grant_Award_Letter.txt",
+   "Quarterly_Update_Email.eml"
+  ]
+ },
+ {
+  "q": "How many researchers does Helix have?",
+  "expect": "conflict",
+  "values": [
+   "24",
+   "31"
+  ],
+  "docs": [
+   "Staff_Directory.html",
+   "Annual_Review_2024.md"
+  ]
+ },
+ {
+  "q": "How long is the grant period?",
+  "expect": "answered",
+  "contains": [
+   "36 months"
+  ],
+  "docs": [
+   "Grant_Award_Letter.txt"
+  ]
+ },
+ {
+  "q": "When is the first grant payment released?",
+  "expect": "answered",
+  "headline": "July 1, 2024",
+  "docs": [
+   "Grant_Award_Letter.txt"
+  ]
+ },
+ {
+  "q": "Who is the Director of Research?",
+  "expect": "answered",
+  "contains": [
+   "Mara Linde"
+  ],
+  "docs": [
+   "Staff_Directory.html"
+  ]
+ },
+ {
+  "q": "What is the personnel budget?",
+  "expect": "answered",
+  "headline": "$610000",
+  "docs": [
+   "Budget_FY2025.csv"
+  ]
+ },
+ {
+  "q": "What is the travel budget?",
+  "expect": "answered",
+  "headline": "$35000",
+  "docs": [
+   "Budget_FY2025.csv"
+  ]
+ },
+ {
+  "q": "How many safety officers staff the facility?",
+  "expect": "answered",
+  "contains": [
+   "3 safety officers"
+  ],
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf"
+  ]
+ },
+ {
+  "q": "Are lab coats required in the Wet Labs?",
+  "expect": "answered",
+  "contains": [
+   "lab coats must be worn"
+  ],
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf"
+  ]
+ },
+ {
+  "q": "What is the airspeed velocity of an unladen swallow?",
+  "expect": "insufficient"
+ },
+ {
+  "q": "Who chairs the ethics committee?",
+  "expect": "insufficient"
+ },
+ {
+  "q": "What is the parking policy for visitors?",
+  "expect": "insufficient"
+ }
+]

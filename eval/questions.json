@@ -1,0 +1,32 @@
+[
+  {"q": "What are the payment terms?", "expect": "conflict", "values": ["Net 30", "Net 45"], "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"]},
+  {"q": "What is the termination notice period?", "expect": "conflict", "values": ["60", "90"], "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"]},
+  {"q": "What is the total contract value?", "expect": "conflict", "values": ["$480,000", "$540,000"], "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"]},
+  {"q": "How many employees does Northwind have?", "expect": "conflict", "values": ["142", "128"], "docs": ["Annual_Report_2023_scanned.pdf", "Board_Minutes_2024-06-12_scan.png"]},
+  {"q": "When did the outage start?", "expect": "conflict", "values": ["September 14, 2023", "September 15, 2023"], "docs": ["Incident_Report_INC-4471.md", "Ops_Postmortem_Portal_Outage.txt"]},
+  {"q": "How long did the outage last?", "expect": "conflict", "values": ["3 hours", "4 hours"], "docs": ["Incident_Report_INC-4471.md", "Ops_Postmortem_Portal_Outage.txt"]},
+  {"q": "How often must passwords be rotated?", "expect": "conflict", "values": ["90 days", "60 days"], "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"]},
+  {"q": "Is MFA required for remote access?", "expect": "conflict", "values": [], "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"]},
+  {"q": "Within how many hours must security incidents be reported?", "expect": "conflict", "values": ["24 hours", "48 hours"], "docs": ["IT_Security_Policy_2022.pdf", "Employee_Handbook_2024.docx"]},
+  {"q": "What is the on-time delivery target in the service levels?", "expect": "conflict", "values": ["97%", "95%"], "docs": ["Vendor_Services_Agreement_2023.pdf", "Contract_Amendment_No1_2024-01-15.docx"]},
+
+  {"q": "What was the root cause of the September outage?", "expect": "answered", "contains": ["expired TLS certificate"], "docs": ["Incident_Report_INC-4471.md", "Ops_Postmortem_Portal_Outage.txt"]},
+  {"q": "How many days of annual leave do employees get?", "expect": "answered", "headline": "20 days", "docs": ["Employee_Handbook_2024.docx"]},
+  {"q": "What is the liability cap?", "expect": "answered", "headline": "$1,000,000", "docs": ["Vendor_Services_Agreement_2023.pdf"]},
+  {"q": "What marketing budget did the board approve?", "expect": "answered", "headline": "$2.4 million", "docs": ["Board_Minutes_2024-06-12_scan.png"]},
+  {"q": "What was the on-time delivery rate in January?", "expect": "answered", "headline": "96.2%", "docs": ["Shipment_Performance_Q1_2024.csv"]},
+  {"q": "Where is the company headquartered?", "expect": "answered", "contains": ["Rotterdam"], "docs": ["Company_FAQ.html"]},
+  {"q": "What was revenue in 2023?", "expect": "answered", "headline": "$38.2 million", "docs": ["Annual_Report_2023_scanned.pdf"]},
+  {"q": "What is the late payment interest rate?", "expect": "answered", "headline": "1.5%", "docs": ["Vendor_Services_Agreement_2023.pdf"]},
+  {"q": "What are the customer support opening hours?", "expect": "answered", "contains": ["08:00"], "docs": ["Company_FAQ.html"]},
+  {"q": "What is the employee turnover?", "expect": "answered", "headline": "11%", "docs": ["Annual_Report_2023_scanned.pdf"]},
+  {"q": "How many remote work days per week are allowed?", "expect": "answered", "contains": ["three days"], "docs": ["Employee_Handbook_2024.docx"]},
+  {"q": "What certificate problem caused the portal to go offline?", "expect": "answered", "contains": ["TLS certificate"], "docs": ["Ops_Postmortem_Portal_Outage.txt"]},
+
+  {"q": "Who is the CFO?", "expect": "insufficient"},
+  {"q": "What is the share price of Northwind?", "expect": "insufficient"},
+  {"q": "How do I bake sourdough bread?", "expect": "insufficient"},
+  {"q": "What is the capital of France?", "expect": "insufficient"},
+  {"q": "Which cloud provider hosts the tracking API gateway?", "expect": "insufficient"},
+  {"q": "What is the CEO's salary?", "expect": "insufficient"}
+]

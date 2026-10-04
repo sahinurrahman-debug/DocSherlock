@@ -1,0 +1,24 @@
+[
+ {
+  "name": "budget",
+  "docs": [
+   "Project_Charter.pdf",
+   "Change_Order_07.docx"
+  ],
+  "values": [
+   "$12.4 million",
+   "$13.1 million"
+  ]
+ },
+ {
+  "name": "deadline",
+  "docs": [
+   "Project_Charter.pdf",
+   "Change_Order_07.docx"
+  ],
+  "values": [
+   "November 30, 2025",
+   "February 28, 2026"
+  ]
+ }
+]

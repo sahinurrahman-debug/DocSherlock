@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document Investigator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233454d1'/%3E%3Ccircle cx='14' cy='14' r='6' fill='none' stroke='white' stroke-width='2.6'/%3E%3Cpath d='M19 19l6 6' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><circle cx="14" cy="14" r="6" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M19 19l6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>
+      <div><b>Document Investigator</b><span>Ask across PDFs, scans and notes - see what agrees, what conflicts, and what is unknown</span></div>
+    </div>
+    <div class="top-actions">
+      <div class="pills" id="pills" aria-live="polite"></div>
+      <label class="mode" title="Answer engine">
+        <span>Engine</span>
+        <select id="mode"><option value="auto">Auto</option><option value="offline">Offline</option><option value="llm">Claude</option></select>
+      </label>
+      <button class="btn ghost" id="btn-export" title="Download the investigation report (Markdown)">Export report</button>
+      <button class="btn ghost" id="btn-theme" title="Toggle theme" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <section class="card">
+      <h2>Documents</h2>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload documents">
+        <input type="file" id="file" multiple hidden>
+        <strong>Drop files here</strong> or <u>browse</u>
+        <small>PDF · DOCX · images (OCR) · TXT/MD · CSV/XLSX · HTML · JSON · EML</small>
+      </div>
+      <div class="row">
+        <button class="btn" id="btn-demo">Load demo corpus</button>
+        <button class="btn ghost danger" id="btn-reset">Clear all</button>
+      </div>
+      <div id="upload-status" class="upload-status" aria-live="polite"></div>
+      <ul class="doclist" id="doclist"></ul>
+      <p class="empty" id="doc-empty">No documents yet. Upload some, or load the demo corpus (11 files, several deliberately contradict each other).</p>
+    </section>
+  </aside>
+
+  <main class="main">
+    <nav class="tabs" role="tablist">
+      <button role="tab" class="tab active" data-tab="ask">Ask</button>
+      <button role="tab" class="tab" data-tab="conflicts">Conflict board <span class="badge" id="badge-conflicts">0</span></button>
+      <button role="tab" class="tab" data-tab="notebook">Notebook <span class="badge" id="badge-notes">0</span></button>
+    </nav>
+
+    <section class="pane active" id="pane-ask">
+      <div class="thread" id="thread">
+        <div class="welcome" id="welcome">
+          <h1>What do you want to find out?</h1>
+          <p>Answers are built only from your documents, with the exact passage cited. When documents disagree you get both positions - not a guess. When the documents don't say, you get "not found".</p>
+          <div class="chips" id="suggestions"></div>
+        </div>
+      </div>
+      <form class="composer" id="composer" autocomplete="off">
+        <textarea id="q" rows="1" placeholder="Ask a question about your documents…  (Enter to send, Shift+Enter for a new line)" maxlength="1500"></textarea>
+        <button class="btn primary" id="send" type="submit">Investigate</button>
+      </form>
+    </section>
+
+    <section class="pane" id="pane-conflicts">
+      <div class="pane-head">
+        <h2>Conflict board</h2>
+        <p>Every disputed point found across all indexed documents, whether or not anyone has asked about it. Each is a statement about the same subject with incompatible values.</p>
+      </div>
+      <div id="conflict-list" class="cards"></div>
+    </section>
+
+    <section class="pane" id="pane-notebook">
+      <div class="pane-head">
+        <h2>Investigation notebook</h2>
+        <p>Pin findings from the Ask tab, add your own notes, then export a cited report.</p>
+        <button class="btn" id="btn-export2">Export report (.md)</button>
+      </div>
+      <div id="note-list" class="cards"></div>
+    </section>
+  </main>
+
+  <aside class="viewer" id="viewer" aria-label="Source viewer">
+    <div class="viewer-head">
+      <div class="viewer-title" id="v-title">Source viewer</div>
+      <button class="btn ghost small" id="v-close" aria-label="Close viewer">✕</button>
+    </div>
+    <div class="viewer-body" id="v-body">
+      <p class="empty">Click any citation or document to see the exact passage in its original context.</p>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

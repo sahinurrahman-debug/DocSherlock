@@ -1,0 +1,11 @@
+OPERATIONS POST-MORTEM - CUSTOMER PORTAL OUTAGE
+Date: September 20, 2023
+
+TIMELINE
+The outage started on September 15, 2023 and lasted 4 hours before the on-call engineer restored service.
+
+ROOT CAUSE
+An expired TLS certificate on the tracking API gateway took the portal offline. Certificate auto-renewal was switched off during the cloud migration.
+
+FOLLOW-UP ACTIONS
+Operations will review certificate monitoring for all public endpoints.

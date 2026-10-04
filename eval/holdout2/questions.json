@@ -1,0 +1,114 @@
+[
+ {
+  "q": "What is the project budget?",
+  "expect": "conflict",
+  "values": [
+   "$12.4 million",
+   "$13.1 million"
+  ],
+  "docs": [
+   "Project_Charter.pdf",
+   "Change_Order_07.docx"
+  ]
+ },
+ {
+  "q": "When is the project due to be completed?",
+  "expect": "conflict",
+  "values": [
+   "November 30, 2025",
+   "February 28, 2026"
+  ],
+  "docs": [
+   "Project_Charter.pdf",
+   "Change_Order_07.docx"
+  ]
+ },
+ {
+  "q": "What was the concrete compressive strength?",
+  "expect": "answered",
+  "contains": [
+   "42 MPa"
+  ],
+  "docs": [
+   "Site_Inspection_Report.md"
+  ]
+ },
+ {
+  "q": "How many safety violations were recorded?",
+  "expect": "answered",
+  "contains": [
+   "Three safety violations"
+  ],
+  "docs": [
+   "Site_Inspection_Report.md"
+  ]
+ },
+ {
+  "q": "Who is the project manager?",
+  "expect": "answered",
+  "contains": [
+   "Tomas Reyes"
+  ],
+  "docs": [
+   "Project_Charter.pdf"
+  ]
+ },
+ {
+  "q": "What is the daily rate for an excavator?",
+  "expect": "answered",
+  "headline": "$420",
+  "docs": [
+   "Equipment_Rates.csv"
+  ]
+ },
+ {
+  "q": "What is the noise limit at the site boundary?",
+  "expect": "answered",
+  "contains": [
+   "85 dB"
+  ],
+  "docs": [
+   "Safety_Plan.docx"
+  ]
+ },
+ {
+  "q": "Are hard hats mandatory for workers on site?",
+  "expect": "answered",
+  "contains": [
+   "mandatory"
+  ],
+  "docs": [
+   "Safety_Plan.docx"
+  ]
+ },
+ {
+  "q": "What are the maximum working hours per day?",
+  "expect": "answered",
+  "headline": "10 hours",
+  "docs": [
+   "Project_Charter.pdf"
+  ]
+ },
+ {
+  "q": "What is the minimum concrete strength specification?",
+  "expect": "answered",
+  "contains": [
+   "40 MPa"
+  ],
+  "docs": [
+   "Site_Inspection_Report.md"
+  ]
+ },
+ {
+  "q": "What is the project's carbon footprint?",
+  "expect": "insufficient"
+ },
+ {
+  "q": "Who is the structural engineer?",
+  "expect": "insufficient"
+ },
+ {
+  "q": "What is the daily rate for a bulldozer?",
+  "expect": "insufficient"
+ }
+]

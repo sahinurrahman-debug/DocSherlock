@@ -1,0 +1,57 @@
+[
+ {
+  "name": "eyewash frequency",
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ],
+  "values": [
+   "weekly",
+   "every day"
+  ]
+ },
+ {
+  "name": "spill volume",
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ],
+  "values": [
+   "500",
+   "250"
+  ]
+ },
+ {
+  "name": "spill reporting time",
+  "docs": [
+   "Lab_Safety_SOP_v2.pdf",
+   "Safety_Update_Memo_2025.docx"
+  ],
+  "values": [
+   "15 minutes",
+   "30 minutes"
+  ]
+ },
+ {
+  "name": "grant amount",
+  "docs": [
+   "Grant_Award_Letter.txt",
+   "Quarterly_Update_Email.eml"
+  ],
+  "values": [
+   "$1,250,000",
+   "$1.5 million"
+  ]
+ },
+ {
+  "name": "researcher headcount",
+  "docs": [
+   "Staff_Directory.html",
+   "Annual_Review_2024.md"
+  ],
+  "values": [
+   "24",
+   "31"
+  ]
+ }
+]
