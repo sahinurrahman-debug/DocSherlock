@@ -11,6 +11,7 @@ import re
 import threading
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -344,6 +345,21 @@ def delete_document(db: Session, doc: Document) -> None:
     except OSError:
         pass
     corpus_cache.bump(sid)
+
+
+def purge_old_documents(days: int) -> int:
+    """Delete documents uploaded more than `days` days ago (all sessions). Returns how many were removed."""
+    if days <= 0:
+        return 0
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    removed = 0
+    with SessionLocal() as db:
+        for doc in list(db.scalars(select(Document).where(Document.uploaded_at < cutoff))):
+            delete_document(db, doc)
+            removed += 1
+    if removed:
+        log.info("retention: removed %d document(s) older than %d days", removed, days)
+    return removed
 
 
 def set_doc_date(db: Session, doc: Document, iso: str | None) -> Document:

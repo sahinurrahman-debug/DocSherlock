@@ -87,12 +87,12 @@ use `json_object` mode with the schema in the prompt. Either way the output is v
 
 Full step-by-step guide: **[docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)**. Short version:
 
-**All-free, all-on-Render setup (default `render.yaml`):** one free web service (UI + API) + Render free PostgreSQL (expires after 30 days; Neon is a no-expiry alternative) + Groq free tier.
+**All-free setup (default `render.yaml`):** one free Render web service (UI + API) + [Neon](https://neon.com) free PostgreSQL (0.5 GB; Render allows only one free database and it expires after 30 days) + Groq free tier.
 
 1. Push this repo to GitHub.
-2. Create a Groq key.
-3. Render → **New → Blueprint** → select the repo. It creates the free web service (`LOW_MEMORY=true`) and the free PostgreSQL, already linked.
-4. In the service's *Environment* tab set `GROQ_API_KEY`.
+2. Create a Neon project (no card) and copy its connection string; create a Groq key.
+3. Render → **New → Blueprint** → select the repo. It creates the free web service (`LOW_MEMORY=true`, `RETENTION_DAYS=14`).
+4. In the service's *Environment* tab set `GROQ_API_KEY` and `DATABASE_URL` (the Neon string).
 5. Open the URL → **Load the sample set**. A free service sleeps after ~15 min idle (≈1 min to wake).
 
 `LOW_MEMORY=true` turns off embeddings + reranker (keyword retrieval, no Qdrant) and shrinks OCR - measured **peak ~360 MB** on the sample set, so it fits Render's 512 MB.

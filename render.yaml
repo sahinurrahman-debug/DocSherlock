@@ -1,14 +1,9 @@
-# Render Blueprint (everything on Render, free): New + -> Blueprint -> pick this repo.
+# Render Blueprint (free): New + -> Blueprint -> pick this repo.
 #   * ONE web service serves the React UI and the API (the Dockerfile builds the frontend into the image)
-#   * Render PostgreSQL, free plan: 1 GB, EXPIRES 30 days after creation (14-day grace to upgrade, then deleted).
-#     For anything long-lived change `plan` below to a paid one - or paste a Neon connection string into DATABASE_URL instead.
+#   * Database: Neon free PostgreSQL (Render allows only ONE free database per workspace and it expires after 30 days).
+#     Create the Neon project first and paste its connection string as DATABASE_URL (marked "sync: false" below).
 #   * LOW_MEMORY=true keeps the process (~360 MB peak) inside the free web service's 512 MB.
-databases:
-  - name: docsherlock-db
-    plan: free
-    databaseName: docsherlock
-    user: docsherlock
-
+#   * RETENTION_DAYS=14 deletes old documents at start-up so Neon's 0.5 GB cannot fill up (~3.3 MB per loaded sample set).
 services:
   - type: web
     name: docsherlock
@@ -20,8 +15,10 @@ services:
     envVars:
       - key: LOW_MEMORY
         value: "true"
+      - key: RETENTION_DAYS
+        value: "14"
       - key: DATABASE_URL
-        fromDatabase: { name: docsherlock-db, property: connectionString }
+        sync: false         # Neon connection string (postgresql://...neon.tech/...?sslmode=require)
       - key: GROQ_API_KEY
         sync: false         # https://console.groq.com/keys
       - key: GROQ_MODEL

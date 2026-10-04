@@ -25,6 +25,10 @@ async def lifespan(app: FastAPI):
 
     init_db()
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        ingestion.purge_old_documents(settings.retention_days)
+    except Exception:
+        log.exception("retention purge skipped")
     emb = get_embeddings()
     try:
         ingestion.reconcile_vectors()                          # re-queue documents whose vectors disappeared (ephemeral disk, new Qdrant)

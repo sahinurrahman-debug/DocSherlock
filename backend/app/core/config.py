@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     ocr_max_side: int = 2600                 # longest image side (px) fed to OCR - smaller = less RAM, slightly lower accuracy
     ocr_threads: int = 0                     # ONNX threads for OCR (0 = library default); 1 uses noticeably less memory
     ocr_render_dpi: int = 200                # resolution scanned PDF pages are rendered at before OCR
+    retention_days: int = 0                              # >0: at start-up delete documents older than this (keeps small free databases from filling)
     low_memory: bool = False                 # one switch for 512 MB hosts (free tiers): keyword retrieval, lighter OCR, one worker
     ingest_mode: str = "async"               # async (background worker) | sync (tests)
     ingest_workers: int = 2

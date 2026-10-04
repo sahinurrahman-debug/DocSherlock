@@ -5,7 +5,7 @@ One Render **web service** (Docker) serves the API *and* the built React app. Tw
 | | **A. Everything free** (default `render.yaml`) | **B. Full retrieval** (paid) |
 |---|---|---|
 | Web service | Render **free** (512 MB) | Render Standard (2 GB) |
-| Database | **Render** free PostgreSQL (30-day limit) or Neon free | Render PostgreSQL or Neon |
+| Database | **Neon** free PostgreSQL | Render PostgreSQL or Neon |
 | Vector store | none (keyword retrieval) | Qdrant Cloud free 1 GB |
 | LLM | Groq free tier | Groq |
 | Setting | `LOW_MEMORY=true` | `LOW_MEMORY=false` |
@@ -20,19 +20,21 @@ Plan names, limits and prices change - check each provider's pricing page.
 **What you give up:** semantic (embedding) search and the cross-encoder reranker are off; retrieval is BM25 + character n-grams. On the evaluation sets the reranker was
 accuracy-neutral and the keyword-mode answers stayed correct. Everything else - OCR, conflict detection, comparison, LLM answers with verified quotes - works.
 **What you accept:**
-* **Render's free PostgreSQL expires 30 days after creation** (1 GB, one per workspace); you get a 14-day grace period to upgrade it, after which it and its data are deleted
-  ([Render docs](https://render.com/docs/free)). Fine for a hackathon; for longer use, upgrade it, or create a free [Neon](https://neon.com) project (no expiry, 0.5 GB)
-  and paste its connection string as `DATABASE_URL` instead.
+* **Neon storage is 0.5 GB per project** (and 100 compute-hours/month; it scales to zero after ~5 min idle, so the first query after a pause is slower). Measured: loading the 11-file sample set
+  stores **~3.3 MB** (2.1 MB of that is the original files kept so the page viewer survives restarts; text, chunks and claims are ~0.2 MB), so 0.5 GB holds on the order of 150 sample sets or a few hundred
+  ordinary documents. Nothing limits visitors, so `RETENTION_DAYS=14` (set in `render.yaml`) deletes documents older than that at each start-up - and a free service restarts whenever it wakes.
+  Set `RETENTION_DAYS=0` to keep everything. If Neon ever fills, writes fail: delete documents in the app, or upgrade.
 * A free Render service sleeps after ~15 minutes idle and needs about a minute to wake; Groq's free tier is rate-limited.
 
 1. **Groq key** - https://console.groq.com/keys → create a key (`gsk_…`). No card needed.
-2. **GitHub** - push the repo (`.env` is git-ignored).
-3. **Render** - https://render.com → **New → Blueprint** → pick the repo. `render.yaml` creates, in one go: the free web service `docsherlock`
-   (React UI + API in one container, `LOW_MEMORY=true`) and the free PostgreSQL `docsherlock-db`, already wired through `DATABASE_URL`.
-4. When prompted (or later under the service's *Environment* tab) set `GROQ_API_KEY`. Nothing else is needed.
-5. First build takes several minutes. Open `https://<service>.onrender.com/health` → expect `status: healthy`, `database.engine: postgresql`, `vector_store.mode: disabled`, `llm.available: true`.
-6. Open the URL → **Load the sample set** → ask *"What are the payment terms?"* (should flag the Net 30 / Net 45 conflict).
-7. Before a demo, open the URL a couple of minutes ahead so the instance is awake.
+2. **Neon database** - https://neon.com → sign up (no card) → create a project → *Connect* → copy the connection string
+   (`postgresql://user:pass@ep-….neon.tech/neondb?sslmode=require`). Render's own free Postgres is not used: Render allows only one free database per workspace and it expires after 30 days.
+3. **GitHub** - push the repo (`.env` is git-ignored).
+4. **Render** - https://render.com → **New → Blueprint** → pick the repo. `render.yaml` creates the free web service (React UI + API in one container, `LOW_MEMORY=true`, `RETENTION_DAYS=14`).
+5. When prompted (or later under *Environment*) set `GROQ_API_KEY` and `DATABASE_URL` (the Neon string; `postgres://` and `postgresql://` are both accepted).
+6. First build takes several minutes. Open `https://<service>.onrender.com/health` → expect `status: healthy`, `database.engine: postgresql`, `vector_store.mode: disabled`, `llm.available: true`.
+7. Open the URL → **Load the sample set** → ask *"What are the payment terms?"* (should flag the Net 30 / Net 45 conflict).
+8. Before a demo, open the URL a couple of minutes ahead so the instance is awake.
 
 Measured memory with `LOW_MEMORY=true` (11-document sample set incl. scanned PDFs/images): boot ~180 MB, steady ~230 MB, **peak ~360 MB** while OCR-ing. Very large scanned PDFs
 will push the peak up; keep demo uploads modest, or set `OCR_ENABLED=false`.
@@ -64,7 +66,7 @@ TEST_DATABASE_URL=postgresql+psycopg://docsherlock:docsherlock@localhost:5432/do
 (Edit `render.yaml`: `plan: standard`, `LOW_MEMORY: "false"`, add `QDRANT_URL` / `QDRANT_API_KEY` entries with `sync: false`, or set them in the dashboard.)
 
 1. Push the repository to GitHub (`.env` is git-ignored - never commit keys).
-2. Render dashboard → **New → Blueprint** → choose the repo. Render reads `render.yaml` and proposes: web service `docsherlock` + database `docsherlock-db`.
+2. Render dashboard → **New → Blueprint** → choose the repo. Render reads `render.yaml` and proposes the web service `docsherlock`. (For path B you may add a paid Render PostgreSQL to the Blueprint, or keep using Neon.)
 3. When prompted (or later under *Environment*), set:
 
    | Variable | Value |
@@ -72,7 +74,7 @@ TEST_DATABASE_URL=postgresql+psycopg://docsherlock:docsherlock@localhost:5432/do
    | `GROQ_API_KEY` | your Groq key |
    | `QDRANT_URL` | your Qdrant Cloud URL |
    | `QDRANT_API_KEY` | your Qdrant API key |
-   | `DATABASE_URL` | filled automatically from `docsherlock-db` |
+   | `DATABASE_URL` | your Neon (or Render PostgreSQL) connection string |
    | `GROQ_MODEL` *(optional)* | `openai/gpt-oss-120b` (default) or `openai/gpt-oss-20b` |
 
 4. **Instance size.** Measured on the 11-document sample set (resident memory of the server process):
@@ -102,7 +104,7 @@ TEST_DATABASE_URL=postgresql+psycopg://docsherlock:docsherlock@localhost:5432/do
   re-indexes automatically (`reconcile_vectors`).
 * **One instance only.** The ingestion worker pool and the corpus cache live in-process; do not scale horizontally without moving ingestion to a queue.
 * **Groq free tier** is rate-limited; DocSherlock waits out short limits and otherwise falls back to the rule-based engine with a visible note.
-* **Privacy:** documents are stored in *your* Render PostgreSQL and Qdrant; with a key set, the question and retrieved passages are sent to Groq.
+* **Privacy:** documents are stored in *your* PostgreSQL (Neon) and, on path B, Qdrant; with a key set, the question and retrieved passages are sent to Groq.
 
 ## Troubleshooting
 | Symptom | Likely cause / fix |
