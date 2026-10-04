@@ -1,198 +1,233 @@
-# Intelligent Document Investigator
+# DocSherlock
 
-> **ALG-AI-02** - upload PDFs, scans, Word files, e-mails, spreadsheets and notes; ask questions in plain English; get answers
-> with the exact supporting passage - and when documents **disagree** or simply **don't say**, get that instead of a confident guess.
+> **Evidence-grounded document investigation.** Upload PDFs, scans, Word files, e-mails and spreadsheets; ask questions in plain English;
+> get answers with the exact supporting passage. When documents **disagree** you get every position with its sources - and when the
+> documents **don't say**, you get "not found" instead of a confident guess. (ALGOTHON-26 · ALG-AI-02)
 
-![Conflict answer with source viewer](docs/screenshots/conflict-answer.jpg)
+![DocSherlock investigating a contract dispute](docs/screenshots/investigation.jpg)
 
 | | |
 |---|---|
-| **Works with no API key, no cloud, no GPU** | OCR, embeddings, conflict detection, confidence and abstention are all local. Claude is an optional upgrade. |
-| **Never a silent winner** | Disagreements become a *disputed point* with positions, sources, dates and a labelled "what might explain it". |
-| **Grounded by construction** | Every citation is an exact slice of the stored page text; the viewer highlights it on the original page image (PDF text search / OCR boxes on scans). |
-| **Honest about uncertainty** | Four outcomes - answered · partial · **conflict** · **not found** - plus a calibrated confidence with the reasons spelled out. |
-| **Tested** | 105 automated tests + a 56-question evaluation across three corpora (numbers and caveats below). |
+| **Groq LLM first, rules as the safety net** | Answers are written by Groq (`openai/gpt-oss-120b`, strict JSON schema). If the key is missing, the rate limit is hit or the model fails, the deterministic rule-based engine answers instead - visibly flagged. |
+| **Never trusts the model** | Every claim must carry a *verbatim* quote from a retrieved passage; quotes are verified against the stored page text, unverifiable ones are dropped and the answer is withheld if nothing verifiable remains. |
+| **Conflicts are a feature** | Disputed points are detected across the whole workspace, clustered into positions, and explained (newer date, amendment wording, formal vs informal source) - always labelled *inference*. |
+| **Five honest outcomes** | `HIGH · MEDIUM · LOW · CONFLICTED · INSUFFICIENT`, each with the reasons behind it. |
+| **Investigation workflow** | Live pipeline stages (SSE), source viewer with the quote highlighted on the original page, conflict board, document comparison, evidence matrix, investigation history, pin/notes, Markdown report. |
 
 ---
 
-## 1. Run it (2 minutes)
+## Contents
+1. [Run it](#1-run-it) · 2. [Groq setup](#2-groq-setup-what-you-need-to-do) · 3. [Deploy on Render](#3-deploy-on-render) · 4. [How it maps to the plan](#4-how-it-maps-to-the-plan)
+5. [Architecture](#5-architecture) · 6. [Testing & evaluation](#6-testing--evaluation) · 7. [Limitations](#7-known-limitations) · 8. [Disclosures](#8-disclosures) · 9. [Repo layout](#9-repository-layout)
 
+---
+
+## 1. Run it
+
+### Option A - local development (SQLite + embedded Qdrant, no Docker needed)
 ```bash
-python -m venv .venv && . .venv/bin/activate          # Windows: .venv\Scripts\activate
+# backend  (Python 3.12+)
+cd backend
+python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python samples/generate_samples.py                     # builds the 11-file demo corpus (also done automatically by the tests)
-python -m investigator.main                            # http://127.0.0.1:8000
+python ../sample-documents/generate.py               # builds the 11-file sample set
+cp .env.example .env                                  # then put your GROQ_API_KEY in it (see §2)
+uvicorn app.main:app --reload --port 8000
+
+# frontend (Node 20+), in a second terminal
+cd frontend
+npm install
+npm run dev                                           # http://localhost:5173  (proxies /api to :8000)
+```
+Open the app → **Load the sample set** → ask *"What are the payment terms?"*
+
+To serve the UI from the API instead (single process): `cd frontend && npm run build`, then open http://localhost:8000.
+
+### Option B - the full stack in Docker (PostgreSQL + Qdrant + app)
+```bash
+GROQ_API_KEY=gsk_... docker compose up --build        # http://localhost:8000
 ```
 
-Click **Load demo corpus**, then pick a suggested question. Tested on Python 3.14 / Windows 11; the Dockerfile targets 3.12.
-
-* **First start downloads one model** (BAAI/bge-small-en-v1.5, ~130 MB, via `fastembed`). Until it is ready the app serves
-  keyword-only retrieval and the header pill says so; set `DOCINV_DENSE=0` to skip it entirely.
-* **Optional Claude mode:** `export ANTHROPIC_API_KEY=...` (default model `claude-opus-5-5`, `DOCINV_MODEL` / `DOCINV_EFFORT` to change).
-  The *Engine* selector in the header switches between Auto / Offline / Claude per question.
-* **Docker:** `docker build -t investigator . && docker run -p 7860:7860 -v docinv:/data investigator`
-  (Dockerfile is provided but was **not built in the authoring environment**; it bakes the OCR and embedding models into the image).
-  The app is a single ASGI process, so it deploys unchanged to Render / Railway / Fly / Hugging Face Spaces (Docker) - set `PORT`.
-  No hosted demo URL is included with this submission.
-
-### Suggested 4-minute demo
-
-| Step | Do this | What it shows |
-|---|---|---|
-| 1 | *Load demo corpus* → look at the left panel | 11 files, 9 formats: born-digital PDF, **scanned PDF**, **PNG scan** (OCR badges + confidence), DOCX, EML, MD, TXT, CSV, HTML |
-| 2 | **What are the payment terms?** | Three documents, **two positions** (Net 30 contract + e-mail, Net 45 amendment); resolution note says the amendment is the most likely current position *and* that a later informal e-mail still says Net 30. Click a source → the PDF page opens with the sentence highlighted |
-| 3 | **How many employees does Northwind have?** | 142 (scanned PDF, March) vs 128 (PNG board minutes, June) - both read by OCR; hint says the values may reflect change over time |
-| 4 | **What marketing budget did the board approve?** | Single-source answer from the scan; the viewer draws the OCR box on the original image; confidence mentions OCR quality |
-| 5 | **What was the root cause of the September outage?** | Corroborated by two documents (confidence goes up) while the *same two documents disagree* on date and duration - visible on the **Conflict board** tab |
-| 6 | **Who is the CFO?** · **What is the share price of Northwind?** | "Not found": names the terms that appear in no document, shows nearest passages *labelled as not an answer* |
-| 7 | **Pin** findings → *Notebook* → **Export report** | Markdown report with every finding, caveat, quote and the corpus-wide conflict register |
-| 8 | Click a document's **date chip** and change it | Conflict reasoning re-runs (e.g. which source is newer) |
-
----
-
-## 2. How it meets the brief
-
-| Requirement (PS ALG-AI-02) | Implementation |
+### Zero-config behaviour
+| If this is missing… | …the app does this |
 |---|---|
-| **Multiple document formats** | PDF (text, scanned, mixed), DOCX (headings, lists, tables, embedded images), PNG/JPG/WEBP/BMP/TIFF/GIF (multi-frame), TXT/MD/LOG, CSV/TSV/XLSX, HTML, JSON, EML |
-| **Extraction / indexing** | PyMuPDF text with font-size heading detection and table extraction; per-page OCR fallback (RapidOCR, ONNX, offline) with paragraph reconstruction; section-aware chunking; typed-fact extraction; BM25 + char n-gram + dense index |
-| **Natural-language Q&A** | Question analysis (how many / how long / when / who / yes-no), hybrid retrieval, sentence-level evidence selection, follow-up handling, extractive composer **or** Claude composer |
-| **Source / section references** | Document · page · section · exact quote · character offsets; click-through viewer with highlight on the page image |
-| **Conflict detection** | Corpus-wide scan at upload time (Conflict board) **and** per-question relevance; clustered into disputed points with positions; guards against false positives |
-| **Uncertainty handling** | Abstention ("not found") with missing-term report; confidence with itemised reasons; OCR-quality penalty; conflict cap; low-confidence caveats |
-| **Bonus: identify conflicting documents, communicate uncertainty** | The whole design - see §3 |
+| `GROQ_API_KEY` | rule-based engine answers (header pill says so) |
+| `DATABASE_URL` | SQLite file in `backend/data/` |
+| `QDRANT_URL` | embedded local Qdrant in `backend/data/qdrant/` |
+| embedding models still downloading (first start, ~150 MB) | keyword retrieval until ready; documents are re-indexed automatically afterwards |
 
 ---
 
-## 3. What makes it different
+## 2. Groq setup (what you need to do)
 
-1. **Disputed points, not document pairs.** Pairwise conflicts are merged: *contract says Net 30, amendment says Net 45, an e-mail says Net 30 again* → one point, two positions, three sources.
-2. **Reasoning about *why* they differ - without overclaiming.** Newer date, amendment wording ("is amended so that…"), formal vs informal source, same-document typo, time-scoped values, draft file names, low OCR confidence. Always labelled *inference*, always ends with "no document says which prevails - confirm".
-3. **Precise because it is typed.** `sixty (60) days` = `2 months` = `60 days`; `Net 30`; `weekly` = every 7 days; `$1.5 million` vs `$1,250,000`; dates with precision awareness.
-4. **A precision-first guard set.** Different quarters/years/entities, as-of dates, table rows, actual-vs-spec values and workers-vs-visitors rules are *not* flagged (see tests).
-5. **Confidence from evidence, not from rank.** A high-ranked passage in a corpus that lacks the answer doesn't look confident; unknown terms ("cfo") are detected corpus-wide.
-6. **LLM output is verified, not trusted.** Every quote must appear verbatim in the cited passage; failures are dropped and lower confidence; refusals/timeouts fall back to the extractive engine.
-7. **Investigation workflow**, not just chat: viewer with highlights, conflict board, editable document dates, pinned notebook, exportable report, retrieval trace ("How was this found?").
+1. Create an account and an API key at **https://console.groq.com/keys**.
+2. Put it in `backend/.env`:
+   ```ini
+   GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxx
+   GROQ_MODEL=openai/gpt-oss-120b          # default. Cheaper/faster: openai/gpt-oss-20b
+   GROQ_FALLBACK_MODEL=llama-3.3-70b-versatile
+   ```
+3. **Verify it** (10 seconds, never prints your key):
+   ```bash
+   cd backend && python scripts/check_groq.py
+   ```
+   It checks the key, the model, strict structured output, and runs a real two-document conflict question end to end.
+4. Restart the backend. The header pill changes from *Rule-based engine* to *Groq · gpt-oss-120b*.
 
-![Conflict board](docs/screenshots/conflict-board.jpg)
-![Not found](docs/screenshots/not-found.jpg)
+**Free-tier note:** Groq's free plan is rate-limited (the docs list 30 requests/min and ~8K tokens/min for the gpt-oss models). One answer uses roughly
+2-4K tokens, so a couple of questions per minute is fine; beyond that DocSherlock waits out short limits and otherwise falls back to the rule-based
+engine with a visible note ("The LLM rate limit was reached…"). A paid tier removes this.
+
+**Model behaviour:** `gpt-oss-*` models use constrained decoding (`json_schema`, `strict: true`) and `reasoning_effort=low`; other models (e.g. Llama)
+use `json_object` mode with the schema in the prompt. Either way the output is validated and every quote is re-verified locally.
 
 ---
 
-## 4. Architecture (details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md))
+## 3. Deploy on Render
+
+Full step-by-step guide: **[docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)**. Short version:
+
+1. Push this repo to GitHub.
+2. **Qdrant Cloud** (free cluster): create a cluster at https://cloud.qdrant.io, copy the URL and API key.
+3. Render → **New → Blueprint** → select the repo (`render.yaml` creates the web service + PostgreSQL).
+4. In the service's *Environment* tab set `GROQ_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
+5. Pick an instance with **≥ 2 GB RAM** (embeddings + reranker + OCR need ~1-1.5 GB). On a 512 MB instance set `DENSE_ENABLED=false`
+   (keyword-only retrieval, ~300 MB) - everything else still works.
+6. Open the URL → **Load the sample set**.
+
+The Dockerfile builds the React app into the image, so one service serves UI + API, bakes the models into the image, and runs a single process.
+
+---
+
+## 4. How it maps to the plan
+
+| Plan item | Status | Notes |
+|---|---|---|
+| React + Vite + TypeScript (+ Tailwind) | ✅ | React 19, Vite 8, TS 7, Tailwind 4; 23 component/lib tests |
+| FastAPI + Pydantic + SQLAlchemy | ✅ | typed schemas, OpenAPI at `/docs` |
+| PostgreSQL | ✅ | SQLAlchemy 2 + psycopg 3; SQLite fallback for zero-setup dev. PG compatibility is covered by DDL-compile tests; the live-PG test is opt-in (`TEST_DATABASE_URL`) and was **not run** in the authoring environment (no Docker daemon / Postgres available) |
+| Qdrant (dense + sparse hybrid) | ✅ | one collection, named dense + BM25 sparse vectors, session/document payload filters. Embedded mode is what was exercised here; server / Cloud mode uses the same client API but was **not run** here |
+| FastEmbed embeddings, hybrid search, reranker | ✅ | bge-small dense, Qdrant/bm25 sparse, MiniLM cross-encoder; fused with lexical BM25 + char n-grams by weighted RRF |
+| OCR (Tesseract / PaddleOCR) | ✅ | RapidOCR (PaddleOCR models via ONNX) - no system binary |
+| PyMuPDF · python-docx · scanned-PDF OCR | ✅ | + XLSX, CSV, HTML, JSON, EML, images |
+| Page/section-aware chunking with offsets | ✅ | exact `page_text[start:end]` slices |
+| Background ingestion with visible status | ✅ | `UPLOADED → PROCESSING → EXTRACTING → OCR → CHUNKING → EMBEDDING → INDEXING → READY/FAILED`; worker pool (Celery/Redis not needed at this scale) |
+| Claim extraction | ✅ | typed claims persisted at ingest (money, %, duration, date, count); LLM returns structured claims per answer for the evidence matrix |
+| Conflict detection (rules + LLM/NLI) | ✅ | rule engine finds candidates; the LLM adjudicates them and explains the likely resolution. **A firm candidate (high severity, different documents, same period) cannot be dismissed or ignored by the model** - it is still reported with the model's view attached as an *assessment* (found with a real Groq run: the model had called an amendment "a replacement" and silently answered "Net 45") |
+| Uncertainty: HIGH/MEDIUM/LOW/CONFLICTED/INSUFFICIENT | ✅ | with itemised reasons; "insufficient evidence" abstention |
+| Prompt-injection defence | ✅ | document text is data inside `<passage>` tags; tested on the LLM and rule paths |
+| Evidence matrix, citation cards, clickable page references | ✅ | click → page image with the passage highlighted |
+| Temporal reasoning / document comparison | ✅ | `/api/compare` + natural-language routing ("what changed between the 2022 and 2024 policies?") |
+| Investigation history, workspace UI | ✅ | investigations, pin, notes, Markdown report |
+| REST **and SSE** | ✅ | `/api/questions/stream` |
+| Sessions | ✅ | anonymous per-browser workspace (`X-Session-Id`), full tenant isolation incl. Qdrant filters. **No user accounts / login** |
+| Groq LLM, provider-configurable | ✅ | `LLM_PROVIDER=openai_compatible` + `LLM_BASE_URL` works for any OpenAI-compatible endpoint |
+| Docker, docker-compose, Render | ✅ | files provided and syntax-validated; **images were not built** here (Docker daemon not running) |
+| Alembic migrations · Celery/Redis | ⏭ | schema is created with `create_all`; background jobs use an in-process worker pool. Both are the natural next step for multi-instance scale |
+
+**Kept from v1 because they were stronger than the plan:** conflict *clusters* with positions and resolution reasoning, scope guards against false conflicts (quarters, entities, as-of dates, table rows), verbatim-citation invariant with highlight-on-page, OCR-box highlighting, calibrated abstention with unknown-term detection, the held-out evaluation methodology, and the rule-based engine (now the fallback).
+
+---
+
+## 5. Architecture
+Details and diagrams: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ```mermaid
 flowchart LR
-    UI[Browser UI] --> API[FastAPI]
-    API --> ENG[Engine]
-    ENG --> ING[Extract → OCR → chunk → facts → embeddings]
-    ING --> IDX[(chunks · facts · embeddings)]
-    IDX --> CON[Conflict scan + clustering]
-    IDX --> QA[Hybrid retrieval → evidence → relevance → confidence]
-    CON --> QA
-    QA --> EXT[Extractive composer]
-    QA -. optional .-> CL[Claude composer + quote verification]
-    ENG <--> DB[(SQLite + original files)]
+    UI["React + TS + Tailwind"] -->|REST + SSE| API[FastAPI]
+    API --> ING[Ingestion workers]
+    ING --> PG[(PostgreSQL<br/>docs · pages · chunks · claims · investigations)]
+    ING --> QD[(Qdrant<br/>dense + BM25 vectors)]
+    API --> QA[Answer pipeline]
+    QA --> RET[Hybrid retrieval + rerank]
+    RET --> QD
+    QA --> CON[Conflict engine]
+    QA -->|main| GROQ[Groq LLM<br/>verified quotes]
+    QA -.->|fallback| RULES[Rule-based composer]
 ```
-
-Stack: Python 3.12+, FastAPI, PyMuPDF, python-docx, openpyxl, RapidOCR (PP-OCR via ONNX Runtime), scikit-learn (char n-gram TF-IDF),
-fastembed (bge-small), SQLite, vanilla JS (no build step), optional Anthropic SDK.
-
-**Major technical decisions** (each with trade-offs in the architecture doc): deterministic core with optional LLM · retrieval emits relevance
-signals for calibration · typed-fact conflict detection with scope guards · conflict clustering · citation offsets as an invariant ·
-derive-on-start persistence (fix a parser bug without re-uploading).
 
 ---
 
-## 5. Testing & evaluation
+## 6. Testing & evaluation
 
 ```bash
-python -m pytest tests -q          # 105 tests, 30-120 s depending on the machine, no network, no API key
-python eval/run_eval.py            # dev corpus, lexical vs hybrid retrieval  -> eval/RESULTS.md
-python eval/run_eval.py --holdout  # held-out corpus 1 (lab safety / grants) -> eval/RESULTS_HOLDOUT.md
-python eval/run_eval.py --holdout2 # held-out corpus 2 (civil engineering)   -> eval/RESULTS_HOLDOUT2.md
-python eval/run_eval.py --llm      # additionally evaluate the Claude composer (needs ANTHROPIC_API_KEY)
+cd backend  && pytest -q                    # 146 tests (1 opt-in live-Postgres test skipped), ~1 min, no network, no API key
+cd frontend && npm test && npm run typecheck  # 23 tests
+python eval/run_eval.py [--holdout|--holdout2] [--quick] [--llm]    # accuracy report -> eval/RESULTS*.md
+cd backend  && python scripts/check_groq.py # live Groq smoke test (needs your key)
 ```
 
-### Results - and how much to trust them
+**What the backend tests cover:** text/fact extraction · every file format incl. corrupt/encrypted/blank · conflict true-positives *and* false-positive guards ·
+28 question/answer behaviours on the sample corpus with a verbatim-citation invariant · Groq path with a fake client (strict vs json_object mode, retries,
+rate limits, auth errors, model fail-over, invalid/truncated JSON, fabricated quotes, partially fabricated quotes, ignored conflicts, prompt injection,
+token budget) · API (multi-upload, duplicates, stages, SSE, sessions/tenant isolation, report, validation) · document comparison · the real Qdrant + FastEmbed +
+reranker stack (paraphrase retrieval, tenant filters, backfill and self-healing after a wiped vector store) · PostgreSQL DDL.
 
-| Corpus | Questions | **First run** (before any fixes) | After fixing the failures it exposed |
-|---|---|---|---|
-| Development (Northwind, 11 files) | 28 | - (built alongside the system) | 100 % · conflict recall/precision 100 % / 100 % |
-| Held-out 1 (lab, 7 files) | 15 | **60 %** · conflict recall 60 % | 100 % |
-| Held-out 2 (civil engineering, 6 files) | 13 | **77 %** · conflict recall 50 % | 92 % (1 miss: a missing headline value) |
+### Retrieval / answer accuracy (rule-based engine, through the real HTTP API)
 
-Be careful with the right-hand column: after each held-out run I fixed the *general* causes it exposed (non-numeric frequencies
-like "weekly", years inside date values being mistaken for scoping qualifiers, generic nouns such as "period" counted as missing
-terms, document names not searchable, unit nouns missing from counts), so those numbers are no longer independent.
-**The first-run column (60 % → 77 % on unseen corpora, with 0 false conflicts throughout) is the honest estimate** of what to expect on a new
-corpus with the offline engine. Raw first-run reports are kept in `eval/holdout*/RESULTS_initial.md`. Across all runs: 0 false
-conflicts on non-conflict questions, every unanswerable question refused, and 100 % of citations verbatim at their stated offsets.
+| Corpus | Questions | Lexical | + Qdrant hybrid | + reranker | Conflict recall / precision |
+|---|---|---|---|---|---|
+| Development (11 mixed-format files) | 28 | 100 % | 100 % | 100 % | 100 % / 100 % |
+| Held-out 1 (lab safety & grants) | 15 | 100 % | 100 % | 100 % | 100 % / 100 % |
+| Held-out 2 (civil engineering) | 13 | 92 % | 92 % | 92 % | 100 % / 100 % |
 
-**Not measured:** the Claude composer against the live API (no API key was available while building). Its *logic* is tested with a fake
-client (quote verification, fabricated-quote rejection, partial fabrication lowering confidence, conflict adjudication/dismissal,
-refusal/truncation/timeouts → fallback, hostile-document handling, request shape), but answer quality with a real model is unmeasured.
+Read these carefully: the system was developed against the first corpus; the two held-out corpora were written afterwards, and the **first-run** scores on them
+(before any fixes) were **60 %** and **77 %** (raw reports in `eval/holdout*/RESULTS_initial.md`). The failures they exposed were fixed generically
+(non-numeric frequencies, years inside date values, generic nouns, document names in the index, unit nouns), so the table above is no longer independent -
+**expect something between the first-run and the final numbers on a brand-new corpus.** Across all runs: 0 false conflicts on non-conflict questions, every unanswerable
+question refused, 100 % of citations verbatim at their stated offsets. The cross-encoder is accuracy-neutral on these small corpora (it only matters when there are
+more candidates than slots) and costs ~1 s of CPU; it stays enabled because it is part of the design and pays off on larger workspaces.
 
-### Edge cases covered by tests
-
-| Area | Cases |
-|---|---|
-| Files | unsupported type, empty file, corrupt PDF, password-protected PDF, 3 text encodings, invalid JSON, blank image (no text → warning, not failure), scanned PDF pages, duplicate upload (hash), same name different content, one bad file in a batch |
-| Conflicts | unit conversion (60 days = 2 months), different quarters/years/entities, as-of dates, event-date conflicts, table rows, same-document inconsistency, antonym assertions, three-way clusters, date edits changing reasoning, deleting a document removes its conflicts |
-| Answers | unanswerable questions, terms absent from every document, period-scoped questions (January) ignoring unrelated disputes, elliptical vs self-contained follow-ups, empty/oversized questions, no documents loaded |
-| Grounding / safety | every citation verbatim at its offsets, prompt-injection text inside a document (offline and Claude paths), fabricated LLM quotes, UI never uses `innerHTML` for document text |
-| API | multi-upload, validation errors (400/404/415/422), page image rendering for PDF and image, notebook + Markdown export |
+**Not measured:** answer quality with the live Groq model (no key was available while building). The LLM path's *grounding logic* is tested exhaustively with a fake client;
+run `python eval/run_eval.py --llm` (with `GROQ_API_KEY`) to measure the real thing and add the numbers here.
 
 ---
 
-## 6. Known limitations
-
-* **English only**; OCR is printed text (handwriting, heavy skew or very low resolution degrade results - the UI shows OCR confidence and lowers answer confidence accordingly).
-* **The offline engine returns supporting sentences, not synthesised prose**, and its yes/no reasoning is limited to retrieval ("Are hard hats mandatory?" returns the sentence). Claude mode adds synthesis.
-* **Conflict detection covers typed values (money, %, durations, dates, counts) and clear polarity/antonym assertions.** Purely semantic contradictions
-  ("approved" vs "put on hold"), qualitative claims and cross-unit comparisons beyond time (currency, mass...) need the Claude adjudicator or are missed. Number *words* are only parsed next to a unit ("sixty days"), not as bare counts ("three violations").
-* **Retrieval vocabulary gaps** in lexical mode (e.g. "due" ↔ "deadline" is handled by a small synonym list, not in general); the dense model closes most but not all gaps. First-run held-out accuracy (60-77 %) shows this is the weakest area.
-* **PDF tables / multi-column layouts** are handled by PyMuPDF heuristics; complex layouts may read out of order. Charts/figures are not interpreted unless they contain text.
-* Single user, single process, no authentication; SQLite; the conflict scan is recomputed on every upload (fine for hundreds of documents, not millions).
-* The Dockerfile and the live Claude path were not exercised in the authoring environment.
+## 7. Known limitations
+* **English only**; OCR is for printed text (handwriting and very low-resolution scans degrade results - the UI shows OCR confidence and the level drops accordingly).
+* **Conflict detection covers typed values** (amounts, %, periods, dates, counts) and clear antonym/negation assertions. Purely semantic contradictions rely on the LLM adjudicator;
+  number *words* are parsed only next to units ("sixty days"); cross-currency / non-time unit conversion is not attempted.
+* The rule-based fallback returns supporting sentences, not synthesised prose, and cannot reason about yes/no questions.
+* Groq free-tier limits (see §2); `gpt-oss` models spend reasoning tokens - `GROQ_REASONING_EFFORT=low` keeps latency and token use down.
+* Memory: ~1-1.5 GB with embeddings + reranker + OCR loaded. Single process by design (in-process worker pool, corpus cache, embedded-Qdrant mode).
+* No user accounts; workspaces are anonymous browser sessions. No Alembic migrations yet.
+* PDF tables / multi-column layouts rely on PyMuPDF heuristics; charts are not interpreted.
 
 ### Future improvements
-LLM-based NLI to verify every rule-engine candidate at ingest · cross-encoder reranker · layout-aware PDF parsing and chart-to-table extraction ·
-multilingual OCR + embeddings · "mark as resolved / authoritative source" feedback that feeds resolution reasoning · incremental conflict scan ·
-user accounts and per-case workspaces · larger public benchmark evaluation (e.g. adversarial conflicting-document QA sets).
+Alembic migrations · Celery/Redis workers for horizontal scale · cross-encoder tuned on domain data · layout-aware PDF parsing · multilingual OCR + embeddings ·
+authoritative-source feedback ("mark as resolved") feeding the resolution reasoning · login and shared workspaces · larger public benchmark evaluation.
 
 ---
 
-## 7. Disclosures
-
-**External services / models / data**
-* **Anthropic Claude API** - *optional*, only when `ANTHROPIC_API_KEY` is set; sends retrieved passages (not whole files) and the question. Off by default.
-* **RapidOCR** (PP-OCR models, Apache-2.0) and **BAAI/bge-small-en-v1.5** via **fastembed** (MIT) - run locally; the bge model is downloaded once from Hugging Face.
-* Libraries: FastAPI, PyMuPDF (AGPL/commercial - review before commercial redistribution), python-docx, openpyxl, scikit-learn, Pillow, NumPy, pytest.
-* **No external datasets.** All demo and evaluation documents are fictional and generated by `samples/generate_samples.py`, `eval/holdout/make_holdout.py`, `eval/holdout2/make_holdout2.py`.
-
-**AI-assisted components.** This project was built with an AI coding assistant (Claude Code): architecture iteration, implementation, tests and documentation
-were produced in an interactive session with a human requester. The test suite and the three evaluation corpora were used to verify behaviour; the
-held-out corpora and first-run numbers above are reported specifically to avoid overstating results. At runtime the only AI-generated text is the optional
-Claude composer's output, which is constrained to verified quotes from the uploaded documents.
+## 8. Disclosures
+* **Groq API** (LLM, main engine) - receives the question and the retrieved *passages* (not whole files). Off when no key is set.
+* **Qdrant** (local embedded or your server / Qdrant Cloud) and **PostgreSQL** store your documents' text, vectors and metadata - on Render that data lives in the services you create.
+* **FastEmbed models** (BAAI/bge-small-en-v1.5, Qdrant/bm25, Xenova/ms-marco-MiniLM-L-6-v2) and **RapidOCR** run locally; weights download once from Hugging Face / the package.
+* Libraries: FastAPI, SQLAlchemy, Qdrant client, PyMuPDF (AGPL / commercial - review before commercial redistribution), python-docx, openpyxl, scikit-learn, Pillow, React, Vite, Tailwind.
+* **No external datasets.** All sample and evaluation documents are fictional and generated by `sample-documents/generate.py`, `eval/holdout/make_holdout.py`, `eval/holdout2/make_holdout2.py`.
+* **AI-assisted development:** built with an AI coding assistant (Claude Code) in an interactive session: architecture, implementation, tests and docs. Behaviour was verified with the test suites and the three evaluation corpora; first-run and post-fix numbers are both reported above.
+  At runtime the only generated text is the Groq composer's output, constrained to verified quotes.
+* v1 of this project ("Intelligent Document Investigator", single-service Python + vanilla JS) is archived in `docs/archive/`.
 
 ---
 
-## 8. Repository layout
-
+## 9. Repository layout
 ```
-investigator/      extract.py · ocr.py · chunking.py · facts.py · conflicts.py · retrieval.py · answer.py · llm.py
-                   engine.py · store.py · report.py · app.py · main.py · static/ (index.html, app.js, style.css)
-samples/           generate_samples.py → corpus/ (11 mixed-format files) · adversarial/ (prompt-injection memo)
-eval/              questions.json · ground_truth_conflicts.json · run_eval.py · RESULTS*.md · holdout/ · holdout2/
-tests/             105 tests (unit, conflict guards, demo-corpus answers, Claude path with fake client, API)
-docs/              ARCHITECTURE.md · screenshots/
-Dockerfile · requirements.txt
+backend/
+  app/
+    main.py                FastAPI app, lifespan (DB init, model warm-up, vector reconcile), static UI
+    api/                   documents · questions (+SSE) · investigations · conflicts/evidence/compare · health · deps (sessions)
+    core/                  config (pydantic-settings) · database (SQLAlchemy engine/session)
+    models/                ORM: documents, pages, chunks, claims, embedding cache, investigations, questions, citations, conflicts
+    schemas/               Pydantic request/response models
+    services/              extractor · ocr · chunker · facts · claims · embeddings · vectorstore · retriever · corpus (cache)
+                           evidence · uncertainty · citations · extractive (rules fallback) · generator (LLM-first) · llm (Groq)
+                           conflict_detector · comparison · ingestion · qa · render · report
+    utils/text.py          tokenising, stemming, sentence splitting
+  tests/                   146 tests            scripts/check_groq.py         requirements*.txt · .env.example
+frontend/                  React + TS + Tailwind (pages: Dashboard · Investigation · Documents)
+sample-documents/          generate.py → corpus/ (11 mixed-format files) · adversarial/ (prompt-injection memo)
+eval/                      questions · ground truth · run_eval.py · RESULTS*.md · holdout/ · holdout2/
+docs/                      ARCHITECTURE.md · DEPLOY_RENDER.md · API.md · screenshots/ · archive/ (v1)
+Dockerfile · docker-compose.yml · render.yaml
 ```
-
-**Configuration** (environment): `DOCINV_DATA_DIR`, `DOCINV_MAX_UPLOAD_MB` (40), `DOCINV_MAX_PDF_PAGES` (300), `DOCINV_DENSE` (`auto`/`0`), `DOCINV_DENSE_MODEL`,
-`DOCINV_OCR` (`on`/`off`), `ANTHROPIC_API_KEY`, `DOCINV_MODEL` (`claude-opus-5-5`), `DOCINV_EFFORT` (`medium`), `HOST`, `PORT`.
-
-**API** (all JSON unless noted): `GET /api/status` · `GET/POST/DELETE /api/documents` · `PATCH /api/documents/{id}` (document date) · `POST /api/demo/load` ·
-`GET /api/documents/{id}/pages/{n}` · `GET …/pages/{n}/image?start&end` (PNG with highlight) · `GET /api/documents/{id}/file` · `POST /api/ask` ·
-`GET /api/conflicts` · `GET/POST /api/notebook` · `DELETE /api/notebook/{id}` · `GET /api/notebook/export` (Markdown).

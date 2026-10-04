@@ -1,0 +1,68 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-bg: #f5f6fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f2f9;
+  --color-ink: #141a2e;
+  --color-muted: #64708b;
+  --color-line: #e2e6f0;
+  --color-brand: #3b4fd8;
+  --color-brand-ink: #ffffff;
+  --color-brand-soft: #e8ebff;
+  --color-ok: #0b8a52;
+  --color-ok-soft: #e4f6ec;
+  --color-warn: #9a5a06;
+  --color-warn-soft: #fff1d6;
+  --color-bad: #b4400b;
+  --color-bad-soft: #ffeadc;
+  --color-none: #56627c;
+  --color-none-soft: #eceff5;
+  --color-mark: #ffe58a;
+}
+
+.dark {
+  --color-bg: #0e121c;
+  --color-surface: #161b28;
+  --color-surface-2: #1d2433;
+  --color-ink: #e8ecf5;
+  --color-muted: #93a0ba;
+  --color-line: #29324a;
+  --color-brand: #8196ff;
+  --color-brand-ink: #0c1121;
+  --color-brand-soft: #1f2a52;
+  --color-ok: #4fd18f;
+  --color-ok-soft: #12301f;
+  --color-warn: #f0b95a;
+  --color-warn-soft: #382c10;
+  --color-bad: #ff9f6e;
+  --color-bad-soft: #3a2013;
+  --color-none: #a3afc6;
+  --color-none-soft: #222a3a;
+  --color-mark: #6b5a12;
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+::selection { background: var(--color-brand-soft); }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-ink transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply border-transparent bg-brand text-brand-ink hover:brightness-110; }
+  .btn-ghost { @apply border-transparent bg-transparent hover:bg-surface-2; }
+  .btn-sm { @apply px-2 py-1 text-xs; }
+  .card { @apply rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(16,24,40,.05)]; }
+  .chip { @apply inline-flex items-center rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11px] text-muted; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-wider text-muted; }
+  .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+}
+
+@keyframes blink { 0%, 80%, 100% { opacity: .2 } 40% { opacity: 1 } }
+.dot-pulse i { display: inline-block; width: 6px; height: 6px; margin-right: 3px; border-radius: 50%; background: var(--color-muted); animation: blink 1s infinite; }
+.dot-pulse i:nth-child(2) { animation-delay: .15s } .dot-pulse i:nth-child(3) { animation-delay: .3s }
+@keyframes stripes { to { background-position: 28px 0 } }
+.bar-active { background-image: linear-gradient(45deg, rgba(255,255,255,.28) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.28) 50%, rgba(255,255,255,.28) 75%, transparent 75%); background-size: 14px 14px; animation: stripes .8s linear infinite; }

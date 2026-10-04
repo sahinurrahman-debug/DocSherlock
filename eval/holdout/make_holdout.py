@@ -9,8 +9,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "corpus"
 OUT.mkdir(exist_ok=True)
-sys.path.insert(0, str(HERE.parent.parent / "samples"))
-from generate_samples import html_to_pdf  # noqa: E402
+sys.path.insert(0, str(HERE.parent.parent / "sample-documents"))
+from generate import html_to_pdf  # noqa: E402
 
 
 def main():

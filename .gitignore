@@ -1,7 +1,13 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/
 .venv/
-.claude/
+.env
 *.log
+backend/data/
+backend/uploads/
+backend/_old/
+node_modules/
+frontend/dist/
+.claude/
+/data/

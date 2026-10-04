@@ -1,0 +1,33 @@
+# Render Blueprint: New + -> Blueprint -> pick this repo. Render creates the Postgres database and the web service.
+# After the first deploy, open the service -> Environment and fill the variables marked "sync: false".
+databases:
+  - name: docsherlock-db
+    plan: free              # free Postgres is time-limited on Render; pick a paid plan for anything long-lived
+    databaseName: docsherlock
+    user: docsherlock
+
+services:
+  - type: web
+    name: docsherlock
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: standard          # 2 GB RAM: the embedding model + reranker + OCR need roughly 1-1.5 GB. See README for lower-memory settings.
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: docsherlock-db, property: connectionString }
+      - key: GROQ_API_KEY
+        sync: false         # paste your key from https://console.groq.com/keys
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_FALLBACK_MODEL
+        value: llama-3.3-70b-versatile
+      - key: QDRANT_URL
+        sync: false         # your Qdrant Cloud cluster URL (https://xxxx.cloud.qdrant.io:6333)
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
