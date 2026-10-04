@@ -88,8 +88,8 @@ export default function Dashboard() {
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
                 <dt className="text-muted">Answer engine</dt><dd>{health.llm.available ? <>Groq <code>{health.llm.model}</code> <span className="text-muted">→ rule-based fallback</span></> : <span className="text-warn">Rule-based only - set GROQ_API_KEY to enable the LLM</span>}</dd>
                 <dt className="text-muted">Database</dt><dd>{health.database.engine}{health.database.ok ? '' : ' (down)'}</dd>
-                <dt className="text-muted">Vector store</dt><dd>Qdrant · {health.vector_store.mode}{health.vector_store.ok ? '' : ' (down)'}</dd>
-                <dt className="text-muted">Models</dt><dd>{health.models.dense.ready ? 'embeddings ready' : health.models.dense.loading ? 'loading…' : 'keyword only'}{health.models.reranker.ready ? ' · reranker' : ''}</dd>
+                <dt className="text-muted">Vector store</dt><dd>{health.vector_store.mode === 'disabled' ? 'not used (keyword mode)' : `Qdrant · ${health.vector_store.mode}${health.vector_store.ok ? '' : ' (down)'}`}</dd>
+                <dt className="text-muted">Models</dt><dd>{health.models.dense.ready ? 'embeddings ready' : health.models.dense.loading ? 'loading…' : 'keyword search (embeddings off)'}{health.models.reranker.ready ? ' · reranker' : ''}</dd>
                 <dt className="text-muted">OCR</dt><dd>{health.ocr.available ? 'RapidOCR available' : 'unavailable'}</dd>
               </dl>
             )}

@@ -1,4 +1,4 @@
-"""FastEmbed models, run locally: dense embeddings, sparse BM25 vectors and a cross-encoder reranker.
+"""Embedding models: dense embeddings (local FastEmbed *or* a hosted API), sparse BM25 vectors and a cross-encoder reranker.
 
 Models load lazily in a background thread so the API starts instantly; until they are ready the system degrades gracefully
 (lexical retrieval only, no reranking) and `/health` reports it.
@@ -8,8 +8,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
+import time
 from typing import Callable
 
+import httpx
 import numpy as np
 
 from app.core.config import settings
@@ -21,6 +23,68 @@ def _unit(m: np.ndarray) -> np.ndarray:
     n = np.linalg.norm(m, axis=-1, keepdims=True)
     n[n == 0] = 1
     return m / n
+
+
+class EmbeddingAPIError(RuntimeError):
+    pass
+
+
+_http_transport: httpx.BaseTransport | None = None            # tests inject a fake server here
+
+
+class ApiEmbedder:
+    """Dense embeddings from a hosted OpenAI-style endpoint: POST {"model", "input": [...]} -> {"data": [{"index", "embedding"}]}.
+
+    Jina's endpoint additionally takes a `task` (retrieval.passage / retrieval.query), which is sent automatically for jina.ai URLs.
+    Nothing is loaded locally, so the process stays small. 429 / 5xx responses are retried with back-off.
+    """
+
+    def __init__(self):
+        self.url = settings.embedding_api_url
+        self.dim = settings.embedding_dim
+        self.jina = "jina.ai" in self.url
+        headers = {"Authorization": f"Bearer {settings.embedding_api_key}"} if settings.embedding_api_key else {}
+        self.client = httpx.Client(timeout=settings.embedding_api_timeout_s, headers=headers, transport=_http_transport)
+
+    def _request(self, texts: list[str], kind: str) -> list[list[float]]:
+        body: dict = {"model": settings.embedding_model, "input": texts}
+        if settings.embedding_api_dimensions:
+            body["dimensions"] = self.dim
+        if self.jina:
+            body["task"] = "retrieval.query" if kind == "query" else "retrieval.passage"
+        last = "no response"
+        for attempt in range(4):
+            try:
+                r = self.client.post(self.url, json=body)
+            except httpx.TransportError as exc:
+                last = f"{exc.__class__.__name__}"
+                time.sleep(min(2 ** attempt, 8))
+                continue
+            if r.status_code in (429, 500, 502, 503, 504):
+                last = f"HTTP {r.status_code}"
+                try:
+                    wait = float(r.headers.get("retry-after", ""))
+                except ValueError:
+                    wait = 2.0 ** attempt
+                time.sleep(min(wait, 8.0))
+                continue
+            if r.status_code >= 400:
+                raise EmbeddingAPIError(f"embedding API answered HTTP {r.status_code}: {r.text[:200]}")
+            data = sorted(r.json().get("data", []), key=lambda d: d.get("index", 0))
+            vecs = [d["embedding"] for d in data]
+            if len(vecs) != len(texts):
+                raise EmbeddingAPIError(f"embedding API returned {len(vecs)} vectors for {len(texts)} texts")
+            if vecs and len(vecs[0]) != self.dim:
+                raise EmbeddingAPIError(f"embedding API returned {len(vecs[0])}-dimensional vectors but EMBEDDING_DIM={self.dim}")
+            return vecs
+        raise EmbeddingAPIError(f"embedding API unavailable ({last}) after retries")
+
+    def embed(self, texts: list[str], kind: str = "doc") -> list[list[float]]:
+        out: list[list[float]] = []
+        step = max(1, settings.embedding_api_batch)
+        for i in range(0, len(texts), step):
+            out.extend(self._request(texts[i:i + step], kind))
+        return out
 
 
 class _Lazy:
@@ -59,6 +123,8 @@ class _Lazy:
 class EmbeddingService:
     def __init__(self):
         def load_dense():
+            if settings.api_embeddings:
+                return ApiEmbedder()                  # no model to load; errors surface per request and are retried by the back-fill
             from fastembed import TextEmbedding
             m = TextEmbedding(settings.embedding_model)
             list(m.embed(["warm up"]))
@@ -114,15 +180,20 @@ class EmbeddingService:
         return self.dense_m.loading or self.sparse_m.loading or self.rerank_m.loading
 
     def status(self) -> dict:
-        return {"dense": self.dense_m.status(), "sparse": self.sparse_m.status(), "reranker": self.rerank_m.status()}
+        return {"dense": self.dense_m.status() | {"source": "api" if settings.api_embeddings else "local"}, "sparse": self.sparse_m.status(),
+                "reranker": self.rerank_m.status()}
 
     # ---- dense ---------------------------------------------------------------------------
     def embed_docs(self, texts: list[str]) -> np.ndarray:
+        if isinstance(self.dense_m.model, ApiEmbedder):
+            return _unit(np.array(self.dense_m.model.embed(texts, "doc"), dtype=np.float32))
         with self.dense_m.lock:
             vecs = list(self.dense_m.model.embed(texts, batch_size=16))
         return _unit(np.array(vecs, dtype=np.float32))
 
     def embed_query(self, q: str) -> np.ndarray:
+        if isinstance(self.dense_m.model, ApiEmbedder):
+            return _unit(np.array(self.dense_m.model.embed([q], "query"), dtype=np.float32))[0]
         with self.dense_m.lock:
             try:
                 v = next(iter(self.dense_m.model.query_embed(q)))
@@ -149,7 +220,8 @@ class EmbeddingService:
     # ---- cache key -------------------------------------------------------------------------
     @staticmethod
     def cache_key(text: str) -> str:
-        return hashlib.sha1(f"{settings.embedding_model}|{text}".encode("utf-8")).hexdigest()
+        tag = f"api|{settings.embedding_model}|{settings.embedding_dim}" if settings.api_embeddings else settings.embedding_model
+        return hashlib.sha1(f"{tag}|{text}".encode("utf-8")).hexdigest()
 
 
 _service: EmbeddingService | None = None

@@ -160,7 +160,7 @@ def embed_texts(db: Session, texts: list[str], emb: EmbeddingService) -> np.ndar
             found[keys[i]] = v
             db.merge(EmbeddingCache(key=keys[i], vec=v.astype(np.float32).tobytes()))
         db.commit()
-    return np.stack([found[k] for k in keys]) if keys else np.zeros((0, 384), dtype=np.float32)
+    return np.stack([found[k] for k in keys]) if keys else np.zeros((0, settings.embedding_dim), dtype=np.float32)
 
 
 def _wait_for_models(emb: EmbeddingService, timeout_s: float = 180.0) -> bool:
@@ -191,6 +191,8 @@ def index_document(db: Session, doc: Document, chunks: list[Chunk], emb: Embeddi
 
 
 def _wait_sparse(emb: EmbeddingService, timeout_s: float = 60.0) -> bool:
+    if not emb.sparse_m.enabled:
+        return False
     t0 = time.time()
     while time.time() - t0 < timeout_s:
         if emb.sparse_m.ready:

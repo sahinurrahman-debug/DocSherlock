@@ -1,8 +1,9 @@
 # Render Blueprint (free): New + -> Blueprint -> pick this repo.
 #   * ONE web service serves the React UI and the API (the Dockerfile builds the frontend into the image)
 #   * Database: Neon free PostgreSQL (Render allows only ONE free database per workspace and it expires after 30 days).
-#     Create the Neon project first and paste its connection string as DATABASE_URL (marked "sync: false" below).
-#   * LOW_MEMORY=true keeps the process (~360 MB peak) inside the free web service's 512 MB.
+#   * Semantic search without local models: embeddings come from a hosted API (Jina free tier) and vectors live in Qdrant Cloud (free 1 GB cluster).
+#     Nothing heavy runs in the 512 MB web service - measured peak ~410 MB. To go keyword-only instead, delete the EMBEDDING_* / QDRANT_* entries.
+#   * LOW_MEMORY=true shrinks OCR/ingestion for the 512 MB limit (and would otherwise switch embeddings off; hosted embeddings keep them on).
 #   * RETENTION_DAYS=14 deletes old documents at start-up so Neon's 0.5 GB cannot fill up (~3.3 MB per loaded sample set).
 services:
   - type: web
@@ -25,6 +26,18 @@ services:
         value: openai/gpt-oss-120b
       - key: GROQ_FALLBACK_MODEL
         value: llama-3.3-70b-versatile
+      - key: EMBEDDING_API_URL
+        value: https://api.jina.ai/v1/embeddings
+      - key: EMBEDDING_API_KEY
+        sync: false         # https://jina.ai/embeddings (free key, 10M tokens, non-commercial use)
+      - key: EMBEDDING_MODEL
+        value: jina-embeddings-v3
+      - key: EMBEDDING_DIM
+        value: "512"
+      - key: QDRANT_URL
+        sync: false         # Qdrant Cloud cluster URL, e.g. https://xxxx.cloud.qdrant.io:6333
+      - key: QDRANT_API_KEY
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL

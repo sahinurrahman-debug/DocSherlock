@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     # ---- retrieval models (FastEmbed, run locally) -----------------------------------------
     dense_enabled: bool = True
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_dim: int = 384                  # vector size; must match the model (bge-small: 384). Hosted models are asked to return this many dims
+    # Hosted embeddings (OpenAI-style POST {"model","input"} -> {"data":[{"embedding"}]}), e.g. Jina: https://api.jina.ai/v1/embeddings
+    # with EMBEDDING_MODEL=jina-embeddings-v3. When set, no embedding model is loaded locally (saves ~400 MB RAM).
+    embedding_api_url: str = ""
+    embedding_api_key: str = ""
+    embedding_api_dimensions: bool = True     # send "dimensions": embedding_dim (supported by Jina v3, OpenAI v3...); false for providers that reject it
+    embedding_api_batch: int = 32
+    embedding_api_timeout_s: float = 30.0
     sparse_model: str = "Qdrant/bm25"
     rerank_enabled: bool = True
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
@@ -87,7 +95,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _low_memory_preset(self):
         if self.low_memory:
-            self.dense_enabled = False
+            self.dense_enabled = bool(self.embedding_api_url)      # hosted embeddings need no local model, so they stay on
             self.rerank_enabled = False
             self.ocr_max_side = min(self.ocr_max_side, 1100)
             self.ocr_threads = 1
@@ -96,6 +104,16 @@ class Settings(BaseSettings):
         return self
 
     # ---- helpers ---------------------------------------------------------------------------
+    @property
+    def api_embeddings(self) -> bool:
+        return bool(self.embedding_api_url)
+
+    @property
+    def collection_name(self) -> str:
+        """The Qdrant collection is tied to the embedding model and dimension, so switching models never mixes incompatible vectors."""
+        slug = "".join(ch if ch.isalnum() else "-" for ch in self.embedding_model).strip("-").lower()
+        return f"{self.qdrant_collection}_{slug}_{self.embedding_dim}"
+
     @property
     def sqlalchemy_url(self) -> str:
         url = self.database_url.strip()

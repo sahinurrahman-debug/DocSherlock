@@ -87,16 +87,18 @@ use `json_object` mode with the schema in the prompt. Either way the output is v
 
 Full step-by-step guide: **[docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)**. Short version:
 
-**All-free setup (default `render.yaml`):** one free Render web service (UI + API) + [Neon](https://neon.com) free PostgreSQL (0.5 GB; Render allows only one free database and it expires after 30 days) + Groq free tier.
+**All-free setup with semantic search (default `render.yaml`):** one free Render web service (UI + API) + [Neon](https://neon.com) free PostgreSQL + hosted embeddings
+([Jina](https://jina.ai/embeddings) free key) + [Qdrant Cloud](https://cloud.qdrant.io) free cluster + Groq free tier. (Render allows only one free database and it expires after 30 days, hence Neon.)
 
 1. Push this repo to GitHub.
-2. Create a Neon project (no card) and copy its connection string; create a Groq key.
-3. Render → **New → Blueprint** → select the repo. It creates the free web service (`LOW_MEMORY=true`, `RETENTION_DAYS=14`).
-4. In the service's *Environment* tab set `GROQ_API_KEY` and `DATABASE_URL` (the Neon string).
+2. Create the free accounts/keys: Groq, Jina, Qdrant Cloud (cluster URL + API key), Neon (connection string). None needs a card.
+3. Render → **New → Blueprint** → select the repo.
+4. Set the five secrets when prompted: `GROQ_API_KEY`, `EMBEDDING_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `DATABASE_URL`.
 5. Open the URL → **Load the sample set**. A free service sleeps after ~15 min idle (≈1 min to wake).
 
-`LOW_MEMORY=true` turns off embeddings + reranker (keyword retrieval, no Qdrant) and shrinks OCR - measured **peak ~360 MB** on the sample set, so it fits Render's 512 MB.
-With ≥ 2 GB RAM (paid) leave it `false` for semantic search + reranking (measured ~700 MB steady, ~1.0 GB peak) and optionally add Qdrant Cloud.
+The embedding model runs at the provider and Qdrant is reached over a thin REST client, so the 512 MB service stays small (measured **peak ~410 MB**; keyword-only mode ~360 MB). The reranker is off in this setup.
+With ≥ 2 GB RAM (paid) set `LOW_MEMORY=false` and clear `EMBEDDING_API_URL` to run FastEmbed + the reranker locally (measured ~700 MB steady, ~1.0 GB peak).
+The hosted-embedding/remote-Qdrant path is tested against fake servers only - see the caveats in [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 
 The Dockerfile builds the React app into the image, so one service serves UI + API, bakes the models into the image, and runs a single process.
 
@@ -192,7 +194,7 @@ run `python eval/run_eval.py --llm` (with `GROQ_API_KEY`) to measure the real th
   number *words* are parsed only next to units ("sixty days"); cross-currency / non-time unit conversion is not attempted.
 * The rule-based fallback returns supporting sentences, not synthesised prose, and cannot reason about yes/no questions.
 * Groq free-tier limits (see §2); `gpt-oss` models spend reasoning tokens - `GROQ_REASONING_EFFORT=low` keeps latency and token use down.
-* Memory: ~700 MB steady / ~1.0 GB peak with embeddings + reranker + OCR; `LOW_MEMORY=true` peaks at ~360 MB (measured; see docs/DEPLOY_RENDER.md). Single process by design (in-process worker pool, corpus cache, embedded-Qdrant mode).
+* Memory: ~700 MB steady / ~1.0 GB peak with embeddings + reranker + OCR; `LOW_MEMORY=true` peaks at ~360 MB, or ~410 MB with hosted embeddings + remote Qdrant (measured; see docs/DEPLOY_RENDER.md). Single process by design (in-process worker pool, corpus cache, embedded-Qdrant mode).
 * No user accounts; workspaces are anonymous browser sessions. No Alembic migrations yet.
 * PDF tables / multi-column layouts rely on PyMuPDF heuristics; charts are not interpreted.
 

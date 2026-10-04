@@ -35,7 +35,7 @@ def health():
     return {
         "status": "healthy" if ready else "degraded", "service": "docsherlock", "version": __version__,
         "database": {"ok": db_ok, "engine": database.engine.dialect.name},
-        "vector_store": {"ok": qdrant_ok, "mode": mode, "collection": settings.qdrant_collection},
+        "vector_store": {"ok": qdrant_ok, "mode": mode, "collection": settings.collection_name},
         "models": emb.status() | {"loading": emb.loading},
         "ocr": {"available": ocr.available(), "reason": ocr.unavailable_reason() if not ocr.available() else ""},
         "llm": {"available": settings.llm_available, "provider": settings.llm_provider, "model": settings.groq_model if settings.llm_available else None,

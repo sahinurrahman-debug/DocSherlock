@@ -1,43 +1,62 @@
 # Deploying DocSherlock on Render
 
-One Render **web service** (Docker) serves the API *and* the built React app. Two ways to run it:
+One Render **web service** (Docker) serves the API *and* the built React app. Three ways to run it:
 
-| | **A. Everything free** (default `render.yaml`) | **B. Full retrieval** (paid) |
-|---|---|---|
-| Web service | Render **free** (512 MB) | Render Standard (2 GB) |
-| Database | **Neon** free PostgreSQL | Render PostgreSQL or Neon |
-| Vector store | none (keyword retrieval) | Qdrant Cloud free 1 GB |
-| LLM | Groq free tier | Groq |
-| Setting | `LOW_MEMORY=true` | `LOW_MEMORY=false` |
+| | **A. Free + semantic search** (default `render.yaml`) | **A'. Free, keyword only** | **B. Everything local** (paid, 2 GB) |
+|---|---|---|---|
+| Web service | Render **free** (512 MB) | Render **free** | Render Standard |
+| Database | Neon free PostgreSQL | Neon free | Render PostgreSQL or Neon |
+| Embeddings | **Jina API** (hosted, free key) | none | local FastEmbed (bge-small) |
+| Vector DB | **Qdrant Cloud** free 1 GB | none | Qdrant Cloud or embedded |
+| Reranker | off | off | local cross-encoder |
+| LLM | Groq free | Groq free | Groq |
+| Memory (measured peak) | ~410 MB | ~360 MB | ~1.0 GB |
 
 Plan names, limits and prices change - check each provider's pricing page.
 
+**Why hosted embeddings?** The local embedding model + reranker peak near 1 GB, which does not fit Render's 512 MB. With `EMBEDDING_API_URL` set, the model runs at the provider and
+the 512 MB service only makes HTTPS calls. For the same reason a remote Qdrant is reached with a thin REST client instead of the official `qdrant-client` (which alone costs ~90 MB of RAM).
+
 > The Dockerfile, `docker-compose.yml` and `render.yaml` were syntax-validated but the image was **not built** in the authoring environment (the Docker daemon was not running).
-> Do step 0 once - it catches problems in minutes instead of during a deploy.
+> The hosted-embedding and remote-Qdrant code is tested against in-process fake servers (Qdrant request bodies are validated against the official models) but **has not been run against a live Jina or Qdrant Cloud**.
+> After deploying, upload one file and check it says *indexed* - if the API rejects a request, the document carries a warning naming the error and falls back to keyword retrieval.
 
-## A. The all-free path (step by step)
+## A. The all-free path with semantic search (step by step)
 
-**What you give up:** semantic (embedding) search and the cross-encoder reranker are off; retrieval is BM25 + character n-grams. On the evaluation sets the reranker was
-accuracy-neutral and the keyword-mode answers stayed correct. Everything else - OCR, conflict detection, comparison, LLM answers with verified quotes - works.
+**What you give up:** the cross-encoder reranker (it was accuracy-neutral on the evaluation sets). Everything else - OCR, hybrid search with embeddings, conflict detection,
+comparison, LLM answers with verified quotes - works.
+
 **What you accept:**
+* **Privacy:** document text is sent to Jina (to embed) and stored in Qdrant Cloud and Neon; with a Groq key, questions and retrieved passages go to Groq. Jina's free key is for **non-commercial** use.
+* **Qdrant Cloud free clusters are suspended after a week of inactivity** and deleted after four weeks. If the vectors disappear, DocSherlock notices at start-up and re-indexes from Neon automatically (this costs embedding calls).
 * **Neon storage is 0.5 GB per project** (and 100 compute-hours/month; it scales to zero after ~5 min idle, so the first query after a pause is slower). Measured: loading the 11-file sample set
   stores **~3.3 MB** (2.1 MB of that is the original files kept so the page viewer survives restarts; text, chunks and claims are ~0.2 MB), so 0.5 GB holds on the order of 150 sample sets or a few hundred
   ordinary documents. Nothing limits visitors, so `RETENTION_DAYS=14` (set in `render.yaml`) deletes documents older than that at each start-up - and a free service restarts whenever it wakes.
   Set `RETENTION_DAYS=0` to keep everything. If Neon ever fills, writes fail: delete documents in the app, or upgrade.
-* A free Render service sleeps after ~15 minutes idle and needs about a minute to wake; Groq's free tier is rate-limited.
+* A free Render service sleeps after ~15 minutes idle and needs about a minute to wake; Groq's and Jina's free tiers are rate-limited.
 
 1. **Groq key** - https://console.groq.com/keys → create a key (`gsk_…`). No card needed.
-2. **Neon database** - https://neon.com → sign up (no card) → create a project → *Connect* → copy the connection string
+2. **Jina key** - https://jina.ai/embeddings → copy the free API key (10M tokens, no card).
+3. **Qdrant Cloud** - https://cloud.qdrant.io → sign up (no card) → create a **free** cluster → copy the cluster URL (`https://….cloud.qdrant.io:6333`) and create an API key.
+4. **Neon database** - https://neon.com → sign up (no card) → create a project → *Connect* → copy the connection string
    (`postgresql://user:pass@ep-….neon.tech/neondb?sslmode=require`). Render's own free Postgres is not used: Render allows only one free database per workspace and it expires after 30 days.
-3. **GitHub** - push the repo (`.env` is git-ignored).
-4. **Render** - https://render.com → **New → Blueprint** → pick the repo. `render.yaml` creates the free web service (React UI + API in one container, `LOW_MEMORY=true`, `RETENTION_DAYS=14`).
-5. When prompted (or later under *Environment*) set `GROQ_API_KEY` and `DATABASE_URL` (the Neon string; `postgres://` and `postgresql://` are both accepted).
-6. First build takes several minutes. Open `https://<service>.onrender.com/health` → expect `status: healthy`, `database.engine: postgresql`, `vector_store.mode: disabled`, `llm.available: true`.
-7. Open the URL → **Load the sample set** → ask *"What are the payment terms?"* (should flag the Net 30 / Net 45 conflict).
-8. Before a demo, open the URL a couple of minutes ahead so the instance is awake.
+5. **GitHub** - push the repo (`.env` is git-ignored).
+6. **Render** - https://render.com → **New → Blueprint** → pick the repo. `render.yaml` creates the free web service (React UI + API in one container).
+7. When prompted (or later under *Environment*) set the five secrets: `GROQ_API_KEY`, `EMBEDDING_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `DATABASE_URL`
+   (`postgres://` and `postgresql://` are both accepted for the database). Everything else is preset.
+8. First build takes several minutes. Open `https://<service>.onrender.com/health` → expect `status: healthy`, `database.engine: postgresql`, `vector_store.mode: server`,
+   `models.dense.source: api`, `llm.available: true`.
+9. Open the URL → **Load the sample set** → documents should show *indexed* → ask *"What are the payment terms?"* (should flag the Net 30 / Net 45 conflict). The answer's retrieval trace lists `qdrant-dense`.
+10. Before a demo, open the URL a couple of minutes ahead so the instance is awake.
 
-Measured memory with `LOW_MEMORY=true` (11-document sample set incl. scanned PDFs/images): boot ~180 MB, steady ~230 MB, **peak ~360 MB** while OCR-ing. Very large scanned PDFs
-will push the peak up; keep demo uploads modest, or set `OCR_ENABLED=false`.
+Measured memory (11-document sample set incl. scanned PDFs/images, with fake embedding/Qdrant servers so only the app's own footprint is counted): boot ~105 MB, steady ~270 MB, **peak ~410 MB** while OCR-ing -
+inside 512 MB but with modest headroom, and measured on Windows/Python 3.14 rather than the Linux/3.12 container. Keep demo uploads modest, or set `OCR_ENABLED=false`.
+
+**Changing the embedding model or `EMBEDDING_DIM`** is safe: the Qdrant collection name includes both, so a new collection is created and documents are re-indexed on the next start-up.
+If your provider rejects the `dimensions` field, set `EMBEDDING_API_DIMENSIONS=false` and `EMBEDDING_DIM` to the model's native size.
+
+## A'. Free, keyword only
+Delete the `EMBEDDING_*` and `QDRANT_*` entries from `render.yaml` (or leave `EMBEDDING_API_URL` empty). `LOW_MEMORY=true` then turns embeddings off: BM25 + character n-grams retrieval, no vector DB, peak ~360 MB.
 
 ## 0. Smoke-test the image locally (recommended)
 Start Docker Desktop, then:
@@ -111,6 +130,7 @@ TEST_DATABASE_URL=postgresql+psycopg://docsherlock:docsherlock@localhost:5432/do
 |---|---|
 | Build fails at the "Bake the models" step | transient download failure - redeploy; or temporarily remove that step (models then download on first start) |
 | Service restarts / "out of memory" | set `LOW_MEMORY=true`, or instance too small → 2 GB, or use a row of the memory table in step 2.4 (`RERANK_ENABLED=false`, `DENSE_ENABLED=false`, `OCR_ENABLED=false`) |
+| Document has the warning *Semantic indexing unavailable (EmbeddingAPIError…)* | the embeddings API rejected the request: wrong `EMBEDDING_API_KEY`/model, or the provider does not accept `dimensions` (set `EMBEDDING_API_DIMENSIONS=false` and `EMBEDDING_DIM` to the native size); it is retried at the next start-up |
 | `vector_store.ok: false` | wrong `QDRANT_URL` (needs `https://…:6333`) or API key |
 | Header says *Rule-based engine* | `GROQ_API_KEY` missing/empty in the service environment |
 | Answers show "rate limit was reached" | Groq free-tier limit - wait a minute, switch to `openai/gpt-oss-20b`, or upgrade |
