@@ -38,4 +38,11 @@ and are switched off entirely under `prefers-reduced-motion`.
 One mark, one lockup, everywhere: a lens over a plus sign on a rounded teal tile with an amber handle, beside a serif "DocSherlock" wordmark.
 * In the app it is always `<Logo />` (`components/Logo.tsx`; sizes `md` and `lg`, optional tagline). Nothing else may draw its own mark - a test fails if another source file contains the geometry or imports the bare `LogoMark`.
 * Outside the app (favicon, README, PDF evidence-pack cover, `apple-touch-icon.png`) the same shape comes from one file, `frontend/public/favicon.svg`. Its light colours are plain attributes (so every renderer honours them) and its dark-mode colours sit in a `prefers-color-scheme` rule; a test checks that its geometry equals the React mark and that its colours equal the design tokens.
+* The README heading is `frontend/public/logo-lockup.svg`: the same mark and the wordmark placed together in one image, so the logo and title are aligned and left-aligned in any Markdown renderer (HTML alignment attributes are not reliable across them). It has a dark-mode variant and a test keeps it identical to the mark.
 * The tile and handle follow the theme tokens (`brand`, `brand-ink`, `lamp`), so the mark is teal in light mode and soft sage in dark mode.
+
+## Header
+One row of three equal-weight zones from 1024 px (logo | navigation | controls), so the navigation is centred on the page; below that the logo and controls share the first row and the navigation sits full width underneath, with four equal links.
+* Every control is **40 px tall** with the same radius, border and hover style (the navigation track, the status control, the engine selector, the theme toggle), and everything sits on one centre line.
+* The four status badges became **one status control** ("Ready", "Limited" or "Degraded", with a dot). It opens a small panel with the answer engine, database, vector store, search mode and OCR; on screens narrower than 1280 px the engine selector lives in that panel instead of crowding the bar.
+* The navigation is a segmented track that shrinks below the width of its links (`min-w-0`) so it can scroll inside itself rather than stretching the page. Tests assert the shared height and shape, the grid, and the shrink rule; measurements at 1280, 1024, 768 and 375 px showed a centring offset of 0 and equal side margins.

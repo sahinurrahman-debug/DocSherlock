@@ -8,7 +8,7 @@ import { SiteFooter } from './SiteFooter'
 import { TopBar } from './TopBar'
 
 const health = {
-  status: 'healthy', version: '2.0.0', llm: { available: true, model: 'openai/gpt-oss-120b' }, vector_store: { ok: true, mode: 'server', collection: 'c' }, ocr: { available: true, reason: '' },
+  status: 'healthy', version: '2.0.0', database: { ok: true, engine: 'sqlite' }, llm: { available: true, model: 'openai/gpt-oss-120b' }, vector_store: { ok: true, mode: 'server', collection: 'c' }, ocr: { available: true, reason: '' },
   models: { dense: { name: 'm', enabled: true, ready: true, loading: false, error: null }, sparse: {}, reranker: {}, loading: false },
 }
 vi.mock('../context/workspace', () => ({ useWorkspace: () => ({ mode: 'auto', setMode: vi.fn(), health }) }))
@@ -48,6 +48,16 @@ describe('one logo, everywhere', () => {
     expect(style).toContain(`.tile { fill: ${dark.brand}; }`)
     expect(style).toContain(`.ink { stroke: ${dark['brand-ink']}; }`)
     expect(style).toContain(`.lamp { stroke: ${dark.lamp}; }`)
+  })
+
+  it('the README lockup (logo + wordmark in one image, so the heading is aligned in any renderer) reuses the same mark and colours', () => {
+    const lockup = new DOMParser().parseFromString(read('public/logo-lockup.svg'), 'image/svg+xml')
+    expect(shape(lockup.querySelector('g')!)).toEqual(shape(svg.documentElement))
+    expect(lockup.querySelector('rect')?.getAttribute('fill')?.toLowerCase()).toBe(light.brand)
+    expect(lockup.querySelector('text')?.textContent).toBe('DocSherlock')
+    const style = lockup.querySelector('style')!.textContent!.toLowerCase()
+    expect(style).toContain(`.tile { fill: ${dark.brand}; }`)
+    expect(style).toContain('prefers-color-scheme: dark')
   })
 
   it('the React mark takes its colours from the same tokens', () => {

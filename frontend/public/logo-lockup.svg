@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 64" role="img" aria-label="DocSherlock">
+  <title>DocSherlock</title>
+  <style>
+    .word { fill: #1f2328; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #86c9bb; }
+      .ink { stroke: #0f1f1c; }
+      .lamp { stroke: #e3b05f; }
+      .word { fill: #f0f6fc; }
+    }
+  </style>
+  <g transform="translate(0 4) scale(1.75)">
+    <rect class="tile" width="32" height="32" rx="9" fill="#1f6f68"/>
+    <circle class="ink" cx="14" cy="14" r="6.5" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+    <path class="lamp" d="M19.2 19.2l6 6" stroke="#c98a2b" stroke-width="3.2" stroke-linecap="round"/>
+    <path class="ink" d="M11.4 14h5.2M14 11.4v5.2" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+  <text class="word" x="74" y="46" font-family="Fraunces, Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" textLength="256" lengthAdjust="spacing" fill="#1f2328">DocSherlock</text>
+</svg>

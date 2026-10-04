@@ -1,6 +1,6 @@
-<p align="center"><img src="./frontend/public/favicon.svg" alt="DocSherlock logo" width="84" /></p>
-
-# DocSherlock
+<h1 align="left">
+  <img src="./frontend/public/logo-lockup.svg" alt="DocSherlock" height="56" />
+</h1>
 
 > Ask questions across your PDFs, scans, Word files and e-mails and get answers with the exact supporting passage - and a straight "the documents disagree" or "not found" when that's the truth. Built for analysts, reviewers and anyone who has to defend what a pile of documents says.
 
@@ -22,7 +22,7 @@ Every required item, and where to find it:
 | **Source-code repository with a clear README** | [GitHub](https://github.com/sahinurrahman-debug/DocSherlock) · this file | Yes |
 | **Architecture diagram and major technical decisions** | [Architecture and major technical decisions](#architecture-and-major-technical-decisions) · [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Diagram inline + decision table |
 | **Demonstration of the core workflow required by the PS** | [Core workflow demonstration](#core-workflow-demonstration) · [Problem-statement coverage](#problem-statement-coverage-alg-ai-02) | 3-minute walkthrough with expected results |
-| **Testing evidence and handling of important edge cases** | [Testing evidence and edge cases](#testing-evidence-and-edge-cases) · [Evaluation](#evaluation) | 213 backend + 76 frontend tests, 3 evaluation corpora, an in-app stress test |
+| **Testing evidence and handling of important edge cases** | [Testing evidence and edge cases](#testing-evidence-and-edge-cases) · [Evaluation](#evaluation) | 213 backend + 86 frontend tests, 3 evaluation corpora, an in-app stress test |
 | **Known limitations and future improvements** | [Known limitations](#known-limitations) · [Future improvements](#future-improvements) | Yes |
 | **Disclosure of external APIs, datasets and AI-assisted components** | [Disclosure](#disclosure-external-apis-datasets-and-ai-assisted-components) | Yes |
 | **Conditions of use, privacy notice, license** | Dashboard footer (also `/#terms`, `/#privacy`, `/#license`) · [LICENSE](./LICENSE) · [License](#license) | MIT; plain-language notices that match what the app does |
@@ -38,15 +38,19 @@ Every required item, and where to find it:
 
 Both are real screenshots of the running app, answering *"What are the payment terms?"* over the bundled sample set: the contract says Net 30, the amendment says Net 45, and DocSherlock shows both with their sources instead of picking one.
 
-| Case board | Trust Lab |
+| Dashboard (light) | Case board (dark) |
 |---|---|
-| ![case board](./screenshots/board.jpg) | ![trust lab](./screenshots/trustlab.jpg) |
+| ![dashboard](./screenshots/dashboard.jpg) | ![case board](./screenshots/board.jpg) |
 
-*The board pins documents on the left and the claims they disagree about on the right - red string joins conflicting claims, amber shows which document amends which. The Trust Lab attacks the running system and reports what actually happened.*
+*The dashboard: greeting, drop box with live progress, workspace stats. The board pins documents on the left and the claims they disagree about on the right - red string joins conflicting claims, amber shows which document amends which.*
 
-![dashboard footer with the privacy notice open](./screenshots/footer.jpg)
+| Trust Lab (dark) | Legal footer (dark) |
+|---|---|
+| ![trust lab](./screenshots/trustlab.jpg) | ![dashboard footer with the privacy notice open](./screenshots/footer.jpg) |
 
-*The dashboard footer: copyright and MIT License, with the conditions of use, privacy notice and license text one click away (shown: the privacy notice).*
+*The Trust Lab attacks the running system and reports what actually happened (12 of 12 here). The dashboard footer carries the copyright and MIT License, with the conditions of use, privacy notice and license text one click away (shown: the privacy notice).*
+
+All screenshots are real captures of the running app, taken after the header redesign (logo, centred navigation, one status control, engine selector, theme toggle).
 
 ---
 
@@ -175,7 +179,7 @@ The problem statement does not require a particular technology, so these are cho
 | FastEmbed (bge-small, BM25, MiniLM cross-encoder) / Jina embeddings API | Local or hosted embeddings, reranking | sentence-transformers, any OpenAI-style `/embeddings` endpoint (`EMBEDDING_API_URL`) |
 | RapidOCR, PyMuPDF, python-docx, openpyxl | Reading scans and documents | Tesseract, Unstructured |
 | Groq (`openai/gpt-oss-120b`, fallback `llama-3.3-70b-versatile`) | Answer writing with strict JSON-schema output | any OpenAI-compatible endpoint (`LLM_PROVIDER=openai_compatible`) |
-| pytest, Vitest, Testing Library | 213 backend and 76 frontend tests | - |
+| pytest, Vitest, Testing Library | 213 backend and 86 frontend tests | - |
 | Docker, Render | Packaging and deployment | any container host |
 
 ---
@@ -236,7 +240,7 @@ All optional; the table lists the ones you are most likely to set. A full annota
 
 ```bash
 cd backend  && pip install -r requirements-dev.txt && pytest -q   # 213 passed, 1 skipped (opt-in live-Postgres test)
-cd frontend && npm test && npm run typecheck                      # 76 passed, type-check clean
+cd frontend && npm test && npm run typecheck                      # 86 passed, type-check clean
 python eval/run_eval.py [--holdout|--holdout2] [--quick] [--llm]  # accuracy report -> eval/RESULTS*.md
 ```
 
@@ -254,7 +258,7 @@ No network and no API key are needed for the test suites. The Trust Lab page rep
 | Insight features (`test_casefile`, `test_timeline`, `test_board`, `test_redteam`, `test_evidencepack`, `test_trustlab`) | 49 | case file, time travel, board graph, red-team attacks, PDF pack, stress-test cases |
 | Retrieval and stores (`test_hybrid`, `test_remote_stack`, `test_ngram_index`, `test_postgres`, `test_low_memory`, `test_compare`, `test_smoke`) | 35 | real embeddings + Qdrant, hosted-embedding/remote-Qdrant against fake servers, outage fallback, PostgreSQL DDL, low-memory preset, document comparison |
 
-**Frontend tests (76, 11 files):** answer cards and citations, confidence badges, safe rendering of document text, case file, timeline, board layout and interaction, red-team panel, trust lab, upload progress, theme toggle, the legal footer (its MIT text is checked against the `LICENSE` file), logo consistency (the static SVG must match the React logo and the design tokens), empty and loading states.
+**Frontend tests (86, 12 files):** answer cards and citations, confidence badges, safe rendering of document text, case file, timeline, board layout and interaction, red-team panel, trust lab, upload progress, theme toggle, the header (layout rules, status panel, engine selector), the legal footer (its MIT text is checked against the `LICENSE` file), logo consistency (the static SVG must match the React logo and the design tokens), empty and loading states.
 
 **Important edge cases and how each is handled**
 
@@ -356,7 +360,7 @@ The second hard part was fitting semantic search into Render's free 512 MB: meas
 
 ## License
 
-Released under the [MIT License](./LICENSE) - Copyright (c) 2026 DocSherlock contributors. One logo is used everywhere - app, favicon and home-screen icon, this README and the PDF evidence pack - drawn from a single source (`frontend/public/favicon.svg`). The app's dashboard footer carries the conditions of use, the privacy notice and the license text (also reachable at `/#terms`, `/#privacy` and `/#license`); these are plain-language notices written for this project, not legal advice. PyMuPDF, a dependency, is AGPL / commercial - see the disclosure above.
+Released under the [MIT License](./LICENSE) - Copyright (c) 2026 DocSherlock contributors. One logo is used everywhere - app, favicon and home-screen icon, this README and the PDF evidence pack - drawn from a single source (`frontend/public/favicon.svg`; the heading above is the same mark with the wordmark, `logo-lockup.svg`). The app's dashboard footer carries the conditions of use, the privacy notice and the license text (also reachable at `/#terms`, `/#privacy` and `/#license`); these are plain-language notices written for this project, not legal advice. PyMuPDF, a dependency, is AGPL / commercial - see the disclosure above.
 
 ---
 
