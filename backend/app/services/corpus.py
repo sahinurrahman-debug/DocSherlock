@@ -44,7 +44,8 @@ class Corpus:
     facts: list[Fact]
     lexical: LexicalIndex
     _clusters: list[dict] | None = field(default=None, repr=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _casefile: dict | None = field(default=None, repr=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
     @property
     def clusters(self) -> list[dict]:
@@ -53,6 +54,16 @@ class Corpus:
                 conflicts = ConflictEngine(self.facts).scan() if len(self.facts) > 1 else []
                 self._clusters = cluster_conflicts(conflicts)
             return self._clusters
+
+    @property
+    def casefile(self) -> dict:
+        """The Case File for this snapshot (built once; snapshots are invalidated whenever documents change)."""
+        self.clusters                                  # computed first (it takes the same lock)
+        with self._lock:
+            if self._casefile is None:
+                from app.services.casefile import build_casefile
+                self._casefile = build_casefile(self)
+            return self._casefile
 
     def retriever(self, embedder: EmbeddingService | None, store: VectorStore | None) -> HybridRetriever:
         r = HybridRetriever.__new__(HybridRetriever)

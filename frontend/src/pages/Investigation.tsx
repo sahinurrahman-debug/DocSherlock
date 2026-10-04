@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useWorkspace } from '../context/workspace'
+import { BoardView } from '../components/BoardView'
+import { CaseFile } from '../components/CaseFile'
 import { ChatPanel } from '../components/ChatPanel'
 import { ComparePanel } from '../components/ComparePanel'
 import { ConflictBoard } from '../components/ConflictBoard'
@@ -7,22 +9,24 @@ import { DocumentList } from '../components/DocumentList'
 import { EvidencePanel } from '../components/EvidencePanel'
 import { FileUploader } from '../components/FileUploader'
 import { InvestigationList } from '../components/InvestigationList'
+import { TimelineView } from '../components/TimelineView'
 
-type Tab = 'ask' | 'conflicts' | 'compare'
+type Tab = 'casefile' | 'ask' | 'conflicts' | 'board' | 'timeline' | 'compare'
 type Pane = 'docs' | 'main' | 'source'
 
 export default function Investigation() {
   const { viewer, closeViewer, exportReport, ask, thread, currentId, investigations, documents, resetAll } = useWorkspace()
-  const [tab, setTab] = useState<Tab>('ask')
+  const [tab, setTab] = useState<Tab>('casefile')
   const [pane, setPane] = useState<Pane>('main')
   const [rightOpen, setRightOpen] = useState(true)
+  const [boardFocus, setBoardFocus] = useState<string | null>(null)
   const name = investigations.find((i) => i.id === currentId)?.name
 
   useEffect(() => { if (viewer) { setRightOpen(true); if (window.innerWidth < 1024) setPane('source') } }, [viewer])
 
   const tabBtn = (t: Tab, label: string, badge?: number) => (
     <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-      className={`relative -mb-px border-b-2 px-4 py-3 text-sm font-semibold transition duration-200 ${tab === t ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
+      className={`relative -mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition duration-200 ${tab === t ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
       {label}{badge ? <span className="ml-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{badge}</span> : null}
     </button>
   )
@@ -46,8 +50,8 @@ export default function Investigation() {
         </aside>
 
         <main className={`flex min-h-0 min-w-0 flex-col ${pane === 'main' ? 'flex' : 'hidden'} lg:flex`}>
-          <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface/80 px-4 backdrop-blur-md" role="tablist" aria-label="Investigation views">
-            {tabBtn('ask', 'Ask')}{tabBtn('conflicts', 'Conflict board')}{tabBtn('compare', 'Compare')}
+          <div className="scroll-thin flex items-center gap-1 overflow-x-auto border-b border-line bg-surface/80 px-4 backdrop-blur-md" role="tablist" aria-label="Investigation views">
+            {tabBtn('casefile', 'Case file')}{tabBtn('ask', 'Ask')}{tabBtn('conflicts', 'Conflicts')}{tabBtn('board', 'Board')}{tabBtn('timeline', 'Timeline')}{tabBtn('compare', 'Compare')}
             <div className="ml-auto flex items-center gap-2 py-1.5">
               {name && <span className="hidden max-w-[220px] truncate text-xs text-muted md:inline" title={name}>{name}</span>}
               <button className="btn btn-sm" onClick={() => void exportReport(false)} disabled={!currentId} title="Download a Markdown report of this investigation">Export report</button>
@@ -55,8 +59,11 @@ export default function Investigation() {
             </div>
           </div>
           <div key={tab} className="fade min-h-0 flex-1">
+            {tab === 'casefile' && <div className="scroll-thin h-full overflow-y-auto"><CaseFile onAsk={(q) => { setTab('ask'); void ask(q) }} onConflicts={() => setTab('conflicts')} onBoard={(id) => { setBoardFocus(id); setTab('board') }} /></div>}
             {tab === 'ask' && <ChatPanel />}
             {tab === 'conflicts' && <div className="scroll-thin h-full overflow-y-auto"><ConflictBoard onAsk={(q) => { setTab('ask'); void ask(q) }} /></div>}
+            {tab === 'board' && <div className="scroll-thin h-full overflow-y-auto"><BoardView focusCluster={boardFocus} onAsk={(q) => { setTab('ask'); void ask(q) }} /></div>}
+            {tab === 'timeline' && <div className="scroll-thin h-full overflow-y-auto"><TimelineView onAsk={(q, asOf) => { setTab('ask'); void ask(q, { asOf }) }} /></div>}
             {tab === 'compare' && <div className="scroll-thin h-full overflow-y-auto"><ComparePanel /></div>}
           </div>
         </main>

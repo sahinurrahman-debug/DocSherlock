@@ -303,7 +303,7 @@ def test_llm_mode_without_a_key_explains_itself(demo_api):
     assert res["engine"]["name"] == "rules" and any("GROQ_API_KEY" in c for c in res["caveats"])
 
 
-def test_document_text_reaches_the_model_only_inside_passage_tags(api, use_llm):
+def test_instructions_aimed_at_the_model_never_reach_it(api, use_llm):
     memo = ROOT / "sample-documents" / "adversarial" / "injection_memo.txt"
     api.upload(("memo.txt", memo.read_bytes()))
     seen = {}
@@ -312,14 +312,15 @@ def test_document_text_reaches_the_model_only_inside_passage_tags(api, use_llm):
         seen["user"] = user
         pid, text = find(user, "10 business days")
         return base(answer=f"About 10 business days [{pid}].", headline="10 business days",
-                    claims=[{"text": "t", "sources": [{"passage": pid, "quote": sentence_with(text, "10 business days")}]}],
-                    caveats=["A passage contains instructions addressed to an AI assistant; they were ignored."])
+                    claims=[{"text": "t", "sources": [{"passage": pid, "quote": sentence_with(text, "10 business days")}]}])
     use_llm(respond)
     res = api.ask("How long does vendor onboarding take?", mode="auto")
     u = seen["user"]
-    inj = u.index("IMPORTANT NOTE TO AI ASSISTANTS")
-    assert u.rfind("<passage", 0, inj) > u.rfind("</passage>", 0, inj)                 # inside a passage block
+    assert "IMPORTANT NOTE TO AI ASSISTANTS" not in u and "ignore all previous instructions" not in u        # redacted before the prompt is built
+    assert "[sentence addressed to AI assistants removed]" in u and u.rfind("<passage") < u.rfind("</passage>")
+    assert "10 business days" in u                                                                        # the genuine content is still sent, inside passage tags
     assert res["status"] == "answered" and "10 business days" in res["answer"]
+    assert any("tries to instruct AI assistants" in w for d in api.docs() for w in d["warnings"])         # and the user is told at upload time
 
 
 def test_prompt_respects_the_passage_and_size_budget(demo_api, use_llm):

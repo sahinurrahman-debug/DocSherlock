@@ -55,6 +55,7 @@ export function TopBar() {
         <NavLink to="/" end className={link}>Dashboard</NavLink>
         <NavLink to="/investigate" className={link}>Investigate</NavLink>
         <NavLink to="/documents" className={link}>Documents</NavLink>
+        <NavLink to="/trust" className={link}>Trust Lab</NavLink>
       </nav>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <div className="hidden xl:block"><StatusPills /></div>

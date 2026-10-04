@@ -11,6 +11,11 @@ class QuestionIn(BaseModel):
     document_ids: list[str] | None = Field(default=None, description="Restrict the investigation to these documents (default: all READY documents)")
     investigation_id: str | None = Field(default=None, description="Continue an investigation; a new one is created when omitted")
     mode: str = Field(default="auto", pattern="^(auto|llm|rules)$", description="auto = LLM with rule-based fallback; rules = never call the LLM")
+    as_of: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Answer as of this date (YYYY-MM-DD): only documents dated on or before it are used")
+
+
+class ChallengeIn(BaseModel):
+    use_llm: bool = Field(default=True, description="Also ask the LLM to attack the answer (needs a key; objections count only if their quote is verbatim)")
 
 
 class QuestionPatch(BaseModel):

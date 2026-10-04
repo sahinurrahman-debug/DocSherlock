@@ -15,7 +15,7 @@ from app.services.evidence import Context
 from app.services.extractive import conflict_answer_lines
 from app.services.llm import LLMClient, LLMMeta
 from app.services.uncertainty import ABSTAIN_BELOW, HIGH_AT, MAX_CONF, MEDIUM_AT, confidence
-from app.utils.text import clip, contains_quote, find_span, split_sentences
+from app.utils.text import clip, contains_quote, find_span, redact_injections, split_sentences
 
 SYSTEM_PROMPT = """You are DocSherlock's answering engine. You answer questions strictly from numbered source passages retrieved from the user's uploaded documents.
 
@@ -76,12 +76,12 @@ def _window(ch: Chunk, focus: list[tuple[int, int]], limit: int) -> str:
     """The chunk text, trimmed to `limit` chars around the evidence sentences if it is long (token budget on rate-limited tiers)."""
     t = ch.text
     if len(t) <= limit:
-        return t
+        return redact_injections(t)                        # sentences that instruct an AI never reach the model
     a = min((s for s, _ in focus), default=0)
     b = max((e for _, e in focus), default=min(len(t), limit))
     mid = (a + b) // 2
     lo = max(0, min(mid - limit // 2, len(t) - limit))
-    return ("… " if lo else "") + t[lo:lo + limit] + (" …" if lo + limit < len(t) else "")
+    return ("… " if lo else "") + redact_injections(t[lo:lo + limit]) + (" …" if lo + limit < len(t) else "")
 
 
 def build_prompt(ctx: Context, chunks: dict[str, Chunk], history: list[dict] | None) -> tuple[str, dict[str, Chunk], dict[str, dict]]:
@@ -309,23 +309,24 @@ def finalize(data: dict, ctx: Context, book: CitationBook, pmap: dict[str, Chunk
         reasons.append({"text": "Rule-based conflict check flagged a disagreement the model did not resolve", "effect": "-"})
     if status == "conflict":
         score = min(score, 0.5)
+    withheld = False                       # downgraded because nothing could be verified: the model's own prose must not reach the user
     if not any(c.role != "lead" for c in book.items) and status in ("answered", "partial"):
-        status, score = "insufficient", min(score, 0.2)
+        status, score, withheld = "insufficient", min(score, 0.2), True
         caveats.append("No verifiable source quotes were supplied, so the answer was withheld.")
     score = max(0.0, min(MAX_CONF, score))
     if status == "insufficient":
         for h in ctx.evidence[:2]:
             book.add(h.chunk, h.page_start, h.page_end, h.text, h.score, role="lead")
     elif score < ABSTAIN_BELOW:
-        status = "insufficient"
+        status, withheld = "insufficient", True
         caveats.append("Evidence strength was too low to present a confident answer.")
         for h in ctx.evidence[:2]:
             book.add(h.chunk, h.page_start, h.page_end, h.text, h.score, role="lead")
     label = "High" if score >= HIGH_AT else "Medium" if score >= MEDIUM_AT else "Low"
     if status == "insufficient":
         label = "None" if score < 0.15 else "Low"
-        answer = answer or "I couldn't find a reliable answer to this in the uploaded documents."
-        answer = "**I couldn't find a reliable answer in the uploaded documents.**\n\n" + re.sub(r"^\*\*I couldn't[^\n]*\n*", "", answer)
+        body = "" if withheld else re.sub(r"^\*\*I couldn't[^\n]*\n*", "", answer or "")
+        answer = "**I couldn't find a reliable answer in the uploaded documents.**" + (f"\n\n{body}" if body.strip() else "")
         matrix = []
     return {"status": status, "headline": headline if status != "insufficient" else "", "answer": answer,
             "confidence": {"score": round(score, 3), "label": label, "reasons": reasons}, "conflicts": conflicts_out, "caveats": caveats,

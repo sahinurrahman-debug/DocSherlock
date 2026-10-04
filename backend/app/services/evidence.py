@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from app.domain import Chunk, Quantity
 from app.services.facts import extract_quantities
 from app.services.retriever import Hit, HybridRetriever as Retriever, dense_norm, term_hit
-from app.utils.text import STOPWORDS, QUESTION_FILLER, content_stems, normalize_ws, split_sentences, question_stems, stem, tokenize
+from app.utils.text import STOPWORDS, QUESTION_FILLER, content_stems, looks_like_injection, normalize_ws, split_sentences, question_stems, stem, tokenize
 
 _MONTH_RE = re.compile(r"\b(january|february|march|april|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\b")
 
@@ -194,7 +194,7 @@ class Analyzer:
             heading = set(content_stems(h.chunk.section))
             for a, b in split_sentences(h.chunk.text):
                 s = h.chunk.text[a:b]
-                if len(s) < 12 or s.lstrip().startswith("#"):
+                if len(s) < 12 or s.lstrip().startswith("#") or looks_like_injection(s):          # text that instructs an AI is never evidence
                     continue
                 cands.append((h, a, b, s, heading))
         if not cands:

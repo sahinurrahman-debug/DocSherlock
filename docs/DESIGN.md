@@ -33,3 +33,9 @@ and are switched off entirely under `prefers-reduced-motion`.
 * **Empty:** `EmptyState` + line illustrations (`illustrations.tsx`) with a headline, one line of help and the next action - never a bare "No data".
 * **Loading:** `Skeleton` shimmer placeholders (stats, document list, conflicts, comparison, source page); status text for long jobs (processing stepper, "thinking" stages).
 * **Theme:** light and dark, following the OS until the user chooses; a script in `index.html` applies it before first paint so there is no flash.
+
+## Logo
+One mark, one lockup, everywhere: a lens over a plus sign on a rounded teal tile with an amber handle, beside a serif "DocSherlock" wordmark.
+* In the app it is always `<Logo />` (`components/Logo.tsx`; sizes `md` and `lg`, optional tagline). Nothing else may draw its own mark - a test fails if another source file contains the geometry or imports the bare `LogoMark`.
+* Outside the app (favicon, README, PDF evidence-pack cover, `apple-touch-icon.png`) the same shape comes from one file, `frontend/public/favicon.svg`. Its light colours are plain attributes (so every renderer honours them) and its dark-mode colours sit in a `prefers-color-scheme` rule; a test checks that its geometry equals the React mark and that its colours equal the design tokens.
+* The tile and handle follow the theme tokens (`brand`, `brand-ink`, `lamp`), so the mark is teal in light mode and soft sage in dark mode.

@@ -1,5 +1,5 @@
 import type {
-  Answer, ClaimInfo, Comparison, ConflictCluster, DocumentInfo, Health, Investigation, InvestigationDetail, Mode, PageData, StageEvent, UploadResponse,
+  Answer, BoardData, CaseFileData, RedTeamResult, TrustOverview, TrustReport, ClaimInfo, TimelineData, Comparison, ConflictCluster, DocumentInfo, Health, Investigation, InvestigationDetail, Mode, PageData, StageEvent, UploadResponse,
 } from './types'
 
 const BASE: string = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
@@ -113,6 +113,22 @@ export const api = {
   conflicts: (ids?: string[]) =>
     req<{ conflicts: ConflictCluster[]; documents: number; claims: number }>('/api/conflicts' + (ids?.length ? `?document_ids=${ids.join(',')}` : '')),
 
+  timeline: (asOf?: string | null, ids?: string[]) => {
+    const q = new URLSearchParams()
+    if (asOf) q.set('as_of', asOf)
+    if (ids?.length) q.set('document_ids', ids.join(','))
+    return req<TimelineData>('/api/timeline' + (q.toString() ? `?${q}` : ''))
+  },
+
+  trustlab: {
+    overview: () => req<TrustOverview>('/api/trustlab'),
+    run: () => req<TrustReport>('/api/trustlab/run', { method: 'POST' }),
+  },
+
+  board: (ids?: string[]) => req<BoardData>('/api/board' + (ids?.length ? `?document_ids=${ids.join(',')}` : '')),
+
+  casefile: (ids?: string[]) => req<CaseFileData>('/api/casefile' + (ids?.length ? `?document_ids=${ids.join(',')}` : '')),
+
   compare: (a: string, b: string) => req<Comparison>('/api/compare', json({ document_a: a, document_b: b, use_llm: true })),
 
   investigations: {
@@ -127,6 +143,8 @@ export const api = {
   questions: {
     patch: (id: string, body: { pinned?: boolean; note?: string }) => req<Answer>(`/api/questions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
     remove: (id: string) => req<void>(`/api/questions/${id}`, { method: 'DELETE' }),
+    pack: (id: string) => downloadFile(`/api/questions/${id}/pack`, `DocSherlock_evidence_${id}.pdf`),
+    challenge: (id: string, useLlm = true) => req<RedTeamResult>(`/api/questions/${id}/challenge`, json({ use_llm: useLlm })),
   },
 }
 
@@ -135,6 +153,7 @@ export interface AskArgs {
   investigationId?: string | null
   documentIds?: string[] | null
   mode: Mode
+  asOf?: string | null
 }
 
 export interface AskHandlers {
@@ -146,7 +165,7 @@ export interface AskHandlers {
 /** POST /api/questions/stream - Server-Sent Events: live pipeline stages, then the final answer. */
 export async function askStream(args: AskArgs, h: AskHandlers = {}): Promise<Answer> {
   const res = await fetch(BASE + '/api/questions/stream', {
-    ...json({ question: args.question, investigation_id: args.investigationId ?? null, document_ids: args.documentIds ?? null, mode: args.mode }),
+    ...json({ question: args.question, investigation_id: args.investigationId ?? null, document_ids: args.documentIds ?? null, mode: args.mode, as_of: args.asOf ?? null }),
     headers: headers({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
     signal: h.signal,
   })

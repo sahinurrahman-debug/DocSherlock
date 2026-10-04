@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { CaseFileTeaser } from '../components/CaseFileTeaser'
 import { EmptyState } from '../components/EmptyState'
 import { FileUploader } from '../components/FileUploader'
 import { AskIllustration } from '../components/illustrations'
-import { LogoMark } from '../components/Logo'
+import { Logo } from '../components/Logo'
+import { SiteFooter } from '../components/SiteFooter'
 import { Skeleton, SkeletonLines } from '../components/Skeleton'
 import { useWorkspace } from '../context/workspace'
 import { api } from '../lib/api'
@@ -47,7 +49,7 @@ export default function Dashboard() {
         <section className="card rise overflow-hidden">
           <div className="grid gap-8 bg-gradient-to-br from-brand-soft via-surface to-surface p-6 md:grid-cols-[1.2fr_1fr] md:p-10">
             <div>
-              <div className="flex items-center gap-3"><LogoMark size={36} /><span className="text-sm font-semibold uppercase tracking-[.18em] text-brand">DocSherlock</span></div>
+              <Logo size="lg" />
               <h1 className="mt-5 text-4xl font-semibold leading-[1.1] md:text-5xl">{greeting()}<br /><span className="text-brand">What shall we look into?</span></h1>
               <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">Bring your PDFs, scans, e-mails and spreadsheets. DocSherlock answers in plain English with the exact passage - and when documents <b className="font-semibold text-ink">disagree</b> or simply <b className="font-semibold text-ink">don't say</b>, it tells you, rather than guessing.</p>
               <div className="mt-7 flex flex-wrap gap-3">
@@ -65,6 +67,8 @@ export default function Dashboard() {
           <Stat i={2} loading={loadingDocs || (readyDocs.length > 0 && disputes === null)} label="Points of dispute" value={disputes ?? '—'} hint="where documents disagree" tone={disputes ? 'text-bad' : ''} />
           <Stat i={3} loading={loadingDocs} label="Investigations" value={investigations.length} hint="saved question histories" />
         </section>
+
+        <CaseFileTeaser />
 
         <section className="card rise p-6 sm:p-7" style={{ '--i': 5 } as React.CSSProperties}>
           <h2 className="text-2xl font-semibold">How an answer is reached</h2>
@@ -105,6 +109,8 @@ export default function Dashboard() {
             )}
           </section>
         </div>
+
+        <SiteFooter />
       </div>
     </div>
   )

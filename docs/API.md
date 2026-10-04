@@ -25,7 +25,7 @@ the web app generates one per browser. Without the header the shared id `public`
 ## Investigations and questions
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/questions` | `{question, document_ids?, investigation_id?, mode: auto\|llm\|rules}` → full answer (below) |
+| POST | `/api/questions` | `{question, document_ids?, investigation_id?, mode: auto\|llm\|rules, as_of?: "YYYY-MM-DD"}` → full answer (below); with `as_of` only documents dated on or before that day are used and the answer carries an `as_of` block |
 | POST | `/api/questions/stream` | same request; **Server-Sent Events**: `investigation`, `stage` (`retrieving → checking_conflicts → reasoning → verifying`), then `result` (or `error`) |
 | GET / PATCH / DELETE | `/api/questions/{id}` | fetch; `{pinned?, note?}`; delete |
 | POST / GET | `/api/investigations` | create `{name?}` / list |
@@ -35,6 +35,12 @@ the web app generates one per browser. Without the header the shared id `public`
 | GET | `/api/conflicts?document_ids=a,b` | **all** disputed points in scope (positions, sources, resolution reasoning) |
 | GET | `/api/conflicts/{question_id}` | the conflicts recorded for an answer |
 | POST | `/api/compare` | `{document_a, document_b}` → changes (old → new, direction, delta), unchanged, only-in-old/new, summary |
+| GET | `/api/casefile?document_ids=` | **Case File**: what needs attention without asking - disputes, superseded / possibly stale documents, hidden instructions aimed at AI, unreadable or low-quality scans, undated files; each finding carries verbatim evidence with offsets |
+| GET | `/api/timeline?as_of=YYYY-MM-DD&document_ids=` | **Time travel**: documents in date order, the history of each disputed point and, with `as_of`, which value was in force on that date (`settled` / `likely` / `disputed` / `not_yet`, with its basis and source) |
+| GET | `/api/board?document_ids=` | **Case Board** graph: documents, disputed claims (positions), and which document amends which |
+| POST | `/api/questions/{id}/challenge` | **Red-Team**: `{use_llm?}` → verdict `survived / weakened / refuted` with every attack tried; stored with the answer |
+| GET | `/api/questions/{id}/pack` | **Evidence pack**: the answer as a PDF (verbatim quotes re-verified, original pages with passages marked, reasoning, SHA-256 fingerprints) |
+| GET | `/api/trustlab` · POST `/api/trustlab/run` | **Trust Lab**: the cases / run the adversarial stress test in a throwaway workspace (409 if a run is in progress) |
 
 ## Answer object (abridged)
 ```jsonc

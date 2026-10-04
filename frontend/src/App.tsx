@@ -5,6 +5,7 @@ import { WorkspaceProvider } from './context/workspace'
 import Dashboard from './pages/Dashboard'
 import Documents from './pages/Documents'
 import Investigation from './pages/Investigation'
+import TrustLab from './pages/TrustLab'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/investigate" element={<Investigation />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/trust" element={<TrustLab />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

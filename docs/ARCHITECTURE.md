@@ -77,6 +77,35 @@ flowchart TD
     UNC --> P["Persist question, citations, conflicts → investigation history"]
 ```
 
+### 3.1 The insight layer: from one answer to a whole case
+
+Everything below is derived from data ingestion already produced (typed claims, conflict clusters, document dates) - no extra model calls are needed except the optional Red-Team adversary.
+
+```mermaid
+flowchart LR
+    CL["Conflict clusters · typed claims · document dates"] --> SUP["supersession.py<br/>likely-current position + basis (amendment wording / recency)"]
+    SUP --> CF["Case File<br/>findings found without a question"]
+    SUP --> TL["Timeline<br/>what was in force on date D; questions restricted to documents ≤ D"]
+    SUP --> BD["Case Board<br/>documents · claims · conflicts · amendments"]
+    ANS["Stored answer"] --> RT["Red-Team<br/>quotes · figures · ignored disputes · exceptions · optional LLM adversary"]
+    ANS --> PK["Evidence pack PDF<br/>re-verifies quotes, embeds highlighted pages, SHA-256 fingerprints"]
+    LAB["Trust Lab<br/>hostile documents + a scripted lying model, through the real pipeline"] -.-> ANS
+```
+
+| Module | Role |
+|---|---|
+| `services/supersession.py` | which position of a dispute is likely current, and why; always labelled as inference |
+| `services/casefile.py` | disputes, superseded / stale documents, hidden AI instructions, unreadable or low-quality scans, undated files |
+| `services/timeline.py` | per-date snapshots (`settled / likely / disputed / not_yet`), document scoping for "as of" questions |
+| `services/board.py` + `frontend/src/lib/boardLayout.ts` | graph data and deterministic geometry for the board |
+| `services/redteam.py` | adversarial second pass with a verdict; an LLM objection counts only if its quote is verbatim |
+| `services/evidencepack.py` | PDF built with PyMuPDF's HTML layout (all document text escaped) |
+| `services/trustlab.py` | 12 adversarial cases run in a throwaway session that is deleted afterwards |
+
+**Layered defence against instructions hidden in documents:** (1) text reaches the model only as quoted data inside `<passage>` tags; (2) sentences that address an AI
+(`utils/text.py::find_injections`, deliberately high-precision) are redacted from the prompt, never selected as evidence, and flagged at upload and in the Case File;
+(3) every quote is verified verbatim and a verified conflict cannot be dismissed by the model; (4) the Red-Team and Trust Lab check all of this continuously.
+
 ## 4. Data model
 
 | Table | Purpose | Notes |

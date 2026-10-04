@@ -28,13 +28,15 @@ interface Workspace {
   pending: Pending | null
   mode: Mode
   setMode: (m: Mode) => void
-  ask: (q: string) => Promise<void>
+  ask: (q: string, opts?: { asOf?: string }) => Promise<void>
   newInvestigation: () => void
   openInvestigation: (id: string) => Promise<void>
   renameInvestigation: (id: string, name: string) => Promise<void>
   deleteInvestigation: (id: string) => Promise<void>
   setPinned: (a: Answer, pinned: boolean) => Promise<void>
   setNote: (a: Answer, note: string) => Promise<void>
+  redTeam: (a: Answer) => Promise<void>
+  exportPack: (a: Answer) => Promise<void>
   exportReport: (pinnedOnly?: boolean) => Promise<void>
 
   viewer: ViewerTarget | null
@@ -90,6 +92,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const t = setInterval(() => void refreshDocuments(), 1200)
     return () => clearInterval(t)
   }, [anyBusy, refreshDocuments])
+
+  // when a batch of documents finishes processing, say what the case file found - before anyone asks a question
+  const wasBusy = useRef(false)
+  useEffect(() => {
+    if (wasBusy.current && !anyBusy && documents.some((d) => d.status === 'READY')) {
+      api.casefile().then((c) => {
+        const n = c.stats.disputed_points
+        toast(n ? `Case file ready: ${c.findings_total} finding${c.findings_total === 1 ? '' : 's'}, ${n} disputed point${n === 1 ? '' : 's'}` : 'Case file ready: no contradictions found')
+      }).catch(() => undefined)
+    }
+    wasBusy.current = anyBusy
+  }, [anyBusy, documents, toast])
 
   // ---- health (faster while models are still loading) ------------------------------------------------------
   useEffect(() => {
@@ -205,13 +219,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setMode = (m: Mode) => { setModeState(m); safeSet(MODE, m) }
 
-  const ask = useCallback(async (question: string) => {
+  const ask = useCallback(async (question: string, opts?: { asOf?: string }) => {
     const q = question.trim()
     if (!q || busyRef.current) return
     busyRef.current = true
     setPending({ question: q, stage: 'retrieving', detail: 'Starting' })
     try {
-      const ans = await askStream({ question: q, investigationId: currentId, documentIds: scopeIds, mode }, {
+      const ans = await askStream({ question: q, investigationId: currentId, documentIds: scopeIds, mode, asOf: opts?.asOf }, {
         onInvestigation: (inv) => { setCurrentId(inv.id); safeSet(LAST, inv.id) },
         onStage: (s) => setPending({ question: q, stage: s.stage, detail: s.detail }),
       })
@@ -237,6 +251,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try { await api.questions.patch(a.id, { note }) } catch (e) { toast(errText(e)) }
   }, [toast])
 
+  const redTeam = useCallback(async (a: Answer) => {
+    try { patchLocal(a.id, { redteam: await api.questions.challenge(a.id, mode !== 'rules') }) } catch (e) { toast(errText(e)) }
+  }, [mode, toast])
+
+  const exportPack = useCallback(async (a: Answer) => {
+    try { await api.questions.pack(a.id) } catch (e) { toast(errText(e)) }
+  }, [toast])
+
   const exportReport = useCallback(async (pinnedOnly = false) => {
     if (!currentId) { toast('Ask a question first - the report covers the current investigation.'); return }
     try { await api.investigations.report(currentId, pinnedOnly) } catch (e) { toast(errText(e)) }
@@ -245,7 +267,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value: Workspace = {
     health, documents, loadingDocs, refreshDocuments, deselected, toggleDoc, selectAll, scopeIds, readyDocs, upload, uploading, loadDemo, removeDoc, resetAll, setDate,
     investigations, currentId, thread, pending, mode, setMode, ask, newInvestigation, openInvestigation, renameInvestigation, deleteInvestigation,
-    setPinned, setNote, exportReport, viewer, openSource: setViewer, closeViewer: () => setViewer(null), toast, toasts,
+    setPinned, setNote, redTeam, exportPack, exportReport, viewer, openSource: setViewer, closeViewer: () => setViewer(null), toast, toasts,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -7,6 +7,7 @@ import { ComparisonView } from './ComparePanel'
 import { ConfidenceBadge, WhyPanel } from './ConfidenceBadge'
 import { ConflictAlert } from './ConflictAlert'
 import { EvidenceMatrix } from './EvidenceMatrix'
+import { RedTeamPanel } from './RedTeamPanel'
 import { RichText } from './RichText'
 
 const BANNER: Record<string, { icon: string; text: string }> = {
@@ -25,7 +26,9 @@ function EngineTag({ a }: { a: Answer }) {
 }
 
 export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?: boolean }) {
-  const { openSource, setPinned, setNote } = useWorkspace()
+  const { openSource, setPinned, setNote, redTeam, exportPack } = useWorkspace()
+  const [attacking, setAttacking] = useState(false)
+  const [showRT, setShowRT] = useState(true)
   const [trace, setTrace] = useState(false)
   const [noting, setNoting] = useState(false)
   const tone = LEVELS[a.level].tone
@@ -45,6 +48,7 @@ export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?:
       </div>
 
       <div className="space-y-5 px-5 py-5">
+        {a.as_of && <p className="inline-flex flex-wrap items-center gap-2 rounded-full bg-lamp/15 px-3.5 py-1.5 text-sm font-medium" data-testid="as-of-chip">As of {a.as_of.date} · {a.as_of.documents_used} of {a.as_of.documents_total} documents existed by then</p>}
         {a.headline && a.status !== 'insufficient' && <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">{a.headline}</h2>}
         {!a.comparison && <RichText text={a.status === 'conflict' && a.conflicts.length ? (a.answer.split('\n')[0] ?? a.answer) : a.answer} onCite={onCite} />}
         {a.conflicts.map((c) => <ConflictAlert key={c.id} cluster={c} />)}
@@ -66,6 +70,11 @@ export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?:
         </div>
       )}
 
+      {attacking && !a.redteam && (
+        <div className="border-t border-line px-5 py-4" role="status" aria-live="polite"><div className="dot-pulse mb-2" aria-hidden="true"><i /><i /><i /></div><p className="text-sm text-muted">Trying to break this answer…</p></div>
+      )}
+      {a.redteam && showRT && <div className="border-t border-line px-5 py-4"><RedTeamPanel r={a.redteam} /></div>}
+
       {trace && (
         <div className="border-t border-line bg-surface-2 px-4 py-3 text-xs">
           <div className="mb-1">Question type <b>{a.trace.question_type ?? a.trace.intent ?? '—'}</b> · key terms <b>{(a.trace.query_terms ?? []).join(', ') || '—'}</b> · channels <b>{(a.trace.channels ?? []).join(' + ') || '—'}</b>
@@ -80,6 +89,9 @@ export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?:
         <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
           <button className={`btn btn-sm ${a.pinned ? '!border-brand !text-brand' : ''}`} aria-pressed={a.pinned} onClick={() => void setPinned(a, !a.pinned)}>{a.pinned ? '📌 Pinned' : '📌 Pin'}</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setNoting((n) => !n)}>{a.note ? '✎ Edit note' : '✎ Add note'}</button>
+          <button className="btn btn-sm" disabled={attacking} onClick={() => { setAttacking(true); setShowRT(true); void redTeam(a).finally(() => setAttacking(false)) }} title="Try to break this answer: verify quotes and figures, hunt for ignored contradictions and exceptions">{attacking ? 'Attacking…' : a.redteam ? 'Red-team again' : 'Red-team this answer'}</button>
+          <button className="btn btn-sm" onClick={() => void exportPack(a)} title="Download this answer as a PDF: verbatim quotes, the original pages with the passages marked, the reasoning and document fingerprints">Evidence pack (PDF)</button>
+          {a.redteam && <button className={`chip !px-3 !py-1 font-semibold ${a.redteam.verdict === 'survived' ? '!bg-ok-soft !text-ok' : a.redteam.verdict === 'weakened' ? '!bg-warn-soft !text-warn' : '!bg-bad-soft !text-bad'}`} aria-expanded={showRT} onClick={() => setShowRT((s) => !s)}>{a.redteam.verdict}</button>}
           <button className="btn btn-sm btn-ghost" onClick={() => setTrace((t) => !t)}>{trace ? 'Hide trace' : 'How was this found?'}</button>
           <span className="ml-auto text-xs text-muted">{a.timings_ms.total ?? ''} ms</span>
           {noting && (

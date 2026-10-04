@@ -158,3 +158,35 @@ def contains_quote(passage: str, quote: str) -> bool:
     if len(q) < 8:
         return False
     return q in norm(passage)
+
+
+# ---- text that tries to instruct an AI -------------------------------------------------------------------------------
+# High-precision patterns only (an ordinary contract never says these). This is one layer: document text is also always sent to the model as
+# quoted data, quotes are verified verbatim, and the model cannot change a verified conflict. Detection lets the product go further - such a
+# sentence is never used as evidence, is hidden from the model, and is reported to the user as a security finding.
+_INJECTION = re.compile(
+    r"\b(?:ignore|disregard|forget|override)\b[^.\n]{0,40}\b(?:previous|prior|above|earlier|all)\b[^.\n]{0,30}\b(?:instructions?|prompts?|rules|guidelines|context)\b"
+    r"|\b(?:notes?|messages?|instructions?|notices?)\s+(?:to|for)\s+(?:the\s+)?(?:ai|a\.i\.|llm|language models?|assistants?|chat ?bots?|models?)\b"
+    r"|\b(?:reveal|print|show|repeat|output|leak)\b[^.\n]{0,30}\b(?:system|developer)\s+prompt\b|\byour (?:system|developer) prompt\b"
+    r"|\bas an ai (?:language )?model\b"
+    r"|\byou are (?:now )?(?:an?|the) (?:ai|llm|chat ?bot|language model)\b",
+    re.IGNORECASE,
+)
+INJECTION_PLACEHOLDER = "[sentence addressed to AI assistants removed]"
+
+
+def looks_like_injection(sentence: str) -> bool:
+    return bool(_INJECTION.search(sentence))
+
+
+def find_injections(text: str) -> list[tuple[int, int]]:
+    """Spans of sentences that try to give instructions to an AI assistant."""
+    return [(a, b) for a, b in split_sentences(text) if _INJECTION.search(text[a:b])]
+
+
+def redact_injections(text: str) -> str:
+    """The text with injection sentences replaced by a neutral placeholder (used only for what is sent to the language model)."""
+    spans = find_injections(text)
+    for a, b in reversed(spans):
+        text = text[:a] + INJECTION_PLACEHOLDER + text[b:]
+    return text

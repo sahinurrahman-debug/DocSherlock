@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import conflicts, documents, health, investigations, questions
+from app.api import conflicts, documents, health, investigations, questions, trustlab
 from app.core.config import settings
 from app.core.database import init_db
 
@@ -45,7 +45,7 @@ app = FastAPI(title="DocSherlock API", version=__version__, lifespan=lifespan,
                           "verified citations, conflict detection and uncertainty levels. All data is scoped by the `X-Session-Id` header.")
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_list, allow_credentials=False, allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["Content-Disposition"])
-for r in (health.router, documents.router, questions.router, investigations.router, conflicts.router):
+for r in (health.router, documents.router, questions.router, investigations.router, conflicts.router, trustlab.router):
     app.include_router(r)
 
 # Single-service deployment: serve the built React app (frontend/dist) from the API when it exists.

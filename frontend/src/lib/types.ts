@@ -164,6 +164,8 @@ export interface Answer {
   note: string
   created_at: string | null
   comparison?: Comparison
+  redteam?: RedTeamResult
+  as_of?: { date: string; documents_used: number; documents_total: number; excluded: { doc_id: string; name: string; doc_date: string | null; reason: 'later' | 'undated' }[] }
 }
 
 export interface Investigation {
@@ -258,3 +260,112 @@ export interface ViewerTarget {
 }
 
 export type StageEvent = { stage: string; detail: string }
+
+// ---- Case file -----------------------------------------------------------------------------------------------
+export interface EvidenceRef {
+  doc_id: string
+  doc_name: string
+  doc_date: string | null
+  page: number | null
+  section: string
+  start: number
+  end: number
+  quote: string
+  value: string
+  ocr_conf: number | null
+}
+
+export type FindingType = 'conflict' | 'superseded' | 'stale' | 'unreadable' | 'ocr' | 'undated' | 'injection'
+
+export interface Finding {
+  id: string
+  type: FindingType
+  severity: 'high' | 'medium' | 'low'
+  title: string
+  detail: string
+  evidence: EvidenceRef[]
+  question?: string | null
+  cluster_id?: string
+  likely_current?: number | null
+  basis?: 'amendment' | 'recency' | null
+  points?: number
+}
+
+export interface CaseFileData {
+  briefing: string
+  stats: {
+    documents: number; claims: number; disputed_points: number; high_severity: number; documents_in_dispute: number
+    corroborated_points: number; superseded_documents: number; scans: number; undated: number
+  }
+  findings: Finding[]
+  findings_total: number
+  omitted_conflicts: number
+  documents: { id: string; name: string; doc_date: string | null; disputed_points: number; overridden_by: string[]; ocr_conf: number | null; readable: boolean }[]
+  suggested_questions: string[]
+}
+
+// ---- Timeline ("as of") ---------------------------------------------------------------------------------------
+export type TopicStatus = 'settled' | 'likely' | 'disputed' | 'not_yet'
+
+export interface TopicSnapshot {
+  cluster_id: string
+  title: string
+  label: string
+  kind: string
+  severity: 'high' | 'medium' | 'low'
+  status: TopicStatus
+  value: string | null
+  basis: string | null
+  source: EvidenceRef | null
+  note: string
+  alternatives?: string[]
+  upcoming: { value: string; date: string; doc_name: string; doc_id: string }[]
+  positions_known: number
+}
+
+export interface TimelineData {
+  documents: { id: string; name: string; doc_date: string | null; key: string; dated: boolean; introduces: { cluster_id: string; title: string; value: string }[] }[]
+  range: { min: string | null; max: string | null }
+  undated: string[]
+  topics: { cluster_id: string; title: string; severity: string; history: { date: string; doc_id: string; doc_name: string; value: string }[] }[]
+  as_of?: { date: string; documents_used: number; documents_total: number; excluded: { doc_id: string; name: string; doc_date: string | null; reason: 'later' | 'undated' }[]; topics: TopicSnapshot[] }
+}
+
+// ---- Case board ----------------------------------------------------------------------------------------------
+export interface BoardPosition { index: number; value: string; current: boolean; corroborated: boolean; sources: EvidenceRef[] }
+export interface BoardDispute {
+  id: string; title: string; severity: 'high' | 'medium' | 'low'; kind: string; same_document: boolean; time_scoped: boolean; resolution: string
+  likely_current: number | null; basis: 'amendment' | 'recency' | null; positions: BoardPosition[]
+}
+export interface BoardData {
+  documents: { id: string; name: string; doc_date: string | null; ext: string; disputes: number }[]
+  disputes: BoardDispute[]
+  amends: { newer_doc_id: string; older_doc_id: string; points: number; kind: 'superseded' | 'stale' }[]
+  stats: { documents: number; disputes: number; shown_of: number; strings: number }
+}
+
+// ---- Red team ------------------------------------------------------------------------------------------------
+export interface RedTeamCheck {
+  id: string
+  label: string
+  status: 'passed' | 'failed' | 'skipped'
+  severity: 'critical' | 'major' | 'minor' | null
+  detail: string
+  evidence: EvidenceRef[]
+}
+
+export interface RedTeamResult {
+  verdict: 'survived' | 'weakened' | 'refuted'
+  headline: string
+  checks: RedTeamCheck[]
+  attacks_run: number
+  concerns: number
+  adversary: 'llm' | 'rules'
+  ran_at: string
+}
+
+// ---- Trust Lab -----------------------------------------------------------------------------------------------
+export interface TrustCase { id: string; category: string; title: string; what: string }
+export interface TrustResult extends TrustCase { status: 'pass' | 'fail'; detail: string; ms: number }
+export interface TrustReport { started_at: string; duration_ms: number; passed: number; failed: number; total: number; cases: TrustResult[]; llm_used: boolean }
+export interface TrustOverview { cases: TrustCase[]; last: TrustReport | null }

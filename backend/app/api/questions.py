@@ -8,14 +8,15 @@ import threading
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_session_id, owned_question
 from app.core.database import SessionLocal, get_db
 from app.models.investigation import Investigation, Question
-from app.schemas.question import QuestionIn, QuestionOut, QuestionPatch
-from app.services import qa
+from app.schemas.question import ChallengeIn, QuestionIn, QuestionOut, QuestionPatch
+from app.services import evidencepack, qa, redteam
+from app.services.llm import get_llm
 from app.utils.text import clip
 
 router = APIRouter(prefix="/api/questions", tags=["questions"])
@@ -45,7 +46,7 @@ def ensure_investigation(db: Session, session_id: str, inv_id: str | None, first
 def ask(body: QuestionIn, session_id: str = Depends(get_session_id), db: Session = Depends(get_db)):
     inv = ensure_investigation(db, session_id, body.investigation_id, body.question)
     try:
-        return qa.ask(db, session_id=session_id, investigation=inv, question=body.question, doc_ids=body.document_ids, mode=body.mode)
+        return qa.ask(db, session_id=session_id, investigation=inv, question=body.question, doc_ids=body.document_ids, mode=body.mode, as_of=body.as_of)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -60,7 +61,7 @@ async def ask_stream(body: QuestionIn, session_id: str = Depends(get_session_id)
         try:
             inv = ensure_investigation(db, session_id, body.investigation_id, body.question)
             q.put(("investigation", {"id": inv.id, "name": inv.name}))
-            res = qa.ask(db, session_id=session_id, investigation=inv, question=body.question, doc_ids=body.document_ids, mode=body.mode,
+            res = qa.ask(db, session_id=session_id, investigation=inv, question=body.question, doc_ids=body.document_ids, mode=body.mode, as_of=body.as_of,
                          on_stage=lambda stage, detail="": q.put(("stage", {"stage": stage, "detail": detail})))
             q.put(("result", res))
         except HTTPException as exc:
@@ -89,6 +90,23 @@ async def ask_stream(body: QuestionIn, session_id: str = Depends(get_session_id)
 @router.get("/{question_id}", response_model=QuestionOut)
 def get_question(row: Question = Depends(owned_question)):
     return question_payload(row)
+
+
+@router.post("/{question_id}/challenge")
+def challenge_answer(body: ChallengeIn | None = None, row: Question = Depends(owned_question), db: Session = Depends(get_db)):
+    """Red-team an answer: try to break it (quotes, figures, ignored contradictions, exceptions, optionally an LLM adversary) and store the verdict with it."""
+    body = body or ChallengeIn()
+    result = redteam.challenge(db, row.session_id, dict(row.payload or {}), get_llm(), use_llm=body.use_llm)
+    row.payload = {**(row.payload or {}), "redteam": result}
+    db.commit()
+    return result
+
+
+@router.get("/{question_id}/pack")
+def evidence_pack(row: Question = Depends(owned_question), db: Session = Depends(get_db)):
+    """The answer as a PDF: verbatim quotes, the original pages with the passages marked, confidence reasoning, document fingerprints."""
+    pdf = evidencepack.build_pack(db, row)
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="DocSherlock_evidence_{row.id}.pdf"', "Cache-Control": "no-store"})
 
 
 @router.patch("/{question_id}", response_model=QuestionOut)

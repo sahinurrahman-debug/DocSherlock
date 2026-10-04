@@ -28,6 +28,7 @@ from app.services.chunker import chunk_document
 from app.services.claims import claim_row, extract_claims
 from app.services.corpus import corpus_cache
 from app.services.embeddings import EmbeddingService, get_embeddings
+from app.utils.text import find_injections
 
 log = logging.getLogger("docsherlock.ingest")
 
@@ -203,14 +204,15 @@ def _wait_sparse(emb: EmbeddingService, timeout_s: float = 60.0) -> bool:
     return False
 
 
-def process_document(doc_id: str) -> None:
+def process_document(doc_id: str, index: bool = True) -> None:
+    """Read, chunk and index one document. `index=False` skips embeddings and the vector store (the Trust Lab uses it for its throwaway documents)."""
     db = SessionLocal()
     try:
         doc = db.get(Document, doc_id)
         if doc is None:
             return
         try:
-            _process(db, doc)
+            _process(db, doc, index)
         except extractor.ExtractionError as exc:
             db.rollback()
             doc = db.get(Document, doc_id)
@@ -226,7 +228,7 @@ def process_document(doc_id: str) -> None:
         db.close()
 
 
-def _process(db: Session, doc: Document) -> None:
+def _process(db: Session, doc: Document, index: bool = True) -> None:
     _set_stage(db, doc, "PROCESSING")
     data = ensure_file(db, doc)
     if data is None:
@@ -261,13 +263,15 @@ def _process(db: Session, doc: Document) -> None:
     doc.n_pages, doc.paged, doc.n_chunks, doc.n_claims, doc.n_chars = len(ex.pages), ex.paged, len(chunks), len(facts), len(full_text)
     doc.ocr_used, doc.ocr_conf = bool(confs), (sum(confs) / len(confs)) if confs else None
     doc.doc_date, doc.doc_date_source, doc.title, doc.warnings = doc_date, date_src, title, list(ex.warnings)
+    if any(find_injections(c.text) for c in chunks):
+        doc.warnings = list(doc.warnings) + ["Contains text that tries to instruct AI assistants. It is treated as document content only: never followed, never used as evidence, and hidden from the language model."]
     db.commit()
 
     emb = get_embeddings()
     _set_stage(db, doc, "EMBEDDING")
     try:
         _set_stage(db, doc, "INDEXING")
-        doc.indexed = index_document(db, doc, chunks, emb)
+        doc.indexed = index_document(db, doc, chunks, emb) if index else False
     except Exception as exc:                            # vector index trouble must not lose the document: lexical retrieval still works
         log.warning("vector indexing failed for %s: %s", doc.id, exc)
         doc.indexed = False

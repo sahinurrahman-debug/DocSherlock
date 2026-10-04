@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.investigation import Citation as CitationRow, ConflictRecord, Investigation, Question
-from app.services import comparison
+from app.services import comparison, timeline
 from app.services.citations import CitationBook
 from app.services.corpus import Corpus, corpus_cache
 from app.services.embeddings import get_embeddings
@@ -53,7 +53,8 @@ def _engine_info(name: str, model: str = "", meta=None, fallback: bool = False, 
 
 
 def ask(db: Session, *, session_id: str, investigation: Investigation, question: str, doc_ids: list[str] | None = None, mode: str = "auto",
-        on_stage: StageCb = _noop, llm: LLMClient | None = None) -> dict:
+        on_stage: StageCb = _noop, llm: LLMClient | None = None, as_of: str | None = None, semantic: bool = True) -> dict:
+    """`as_of` ('YYYY-MM-DD') answers using only documents that existed by then; `semantic=False` skips vector search (used by the Trust Lab)."""
     t0 = time.perf_counter()
     question = re.sub(r"\s+", " ", question or "").strip()
     if not question:
@@ -62,6 +63,31 @@ def ask(db: Session, *, session_id: str, investigation: Investigation, question:
         raise ValueError("Question is too long (max 1500 characters).")
     llm = llm or get_llm()
 
+    as_of_info: dict | None = None
+    if as_of:
+        day = timeline.parse_day(as_of)                            # ValueError -> HTTP 400
+        everything = corpus_cache.get(db, session_id, doc_ids)
+        keep, excluded = timeline.documents_as_of(everything, day)
+        as_of_info = {"date": day, "documents_used": len(keep), "documents_total": len(everything.docs), "excluded": excluded}
+        if not keep:
+            res = _empty(question, f"No document is dated on or before {day}, so there is nothing to answer from at that point in time.")
+            res["as_of"] = as_of_info
+            return _persist(db, investigation, session_id, res, t0, t0)
+        doc_ids = keep
+
+    def done(resp: dict, t_end: float) -> dict:
+        if as_of_info:
+            later = [e for e in as_of_info["excluded"] if e["reason"] == "later"]
+            undated = [e for e in as_of_info["excluded"] if e["reason"] == "undated"]
+            note = f"Answered as of {as_of_info['date']}, using {as_of_info['documents_used']} of {as_of_info['documents_total']} documents."
+            if later:
+                note += f" Written later and ignored: {', '.join(e['name'] for e in later[:4])}{' and more' if len(later) > 4 else ''}."
+            if undated:
+                note += f" Undated, so left out: {', '.join(e['name'] for e in undated[:3])}{' and more' if len(undated) > 3 else ''}."
+            resp["as_of"] = as_of_info
+            resp["caveats"] = [note] + list(resp.get("caveats", []))
+        return _persist(db, investigation, session_id, resp, t0, t_end)
+
     corpus = corpus_cache.get(db, session_id, doc_ids)
     if not corpus.docs:
         return _persist(db, investigation, session_id, _empty(question, "No documents are ready yet. Upload documents (or load the sample set) and wait until they show READY."), t0, t0)
@@ -69,7 +95,7 @@ def ask(db: Session, *, session_id: str, investigation: Investigation, question:
     prior = [{"question": q.question, "answer": q.answer} for q in investigation.questions[-3:]]
     emb = get_embeddings()
     store = None
-    if settings.dense_enabled:
+    if settings.dense_enabled and semantic:
         from app.services.vectorstore import get_vector_store      # lazy: the Qdrant client costs ~120 MB, unused in keyword-only mode
         store = get_vector_store()
     retriever = corpus.retriever(emb, store)
@@ -78,7 +104,7 @@ def ask(db: Session, *, session_id: str, investigation: Investigation, question:
     pair = comparison.resolve_documents(question, corpus)
     if pair:
         on_stage("comparing", "Comparing the two documents")
-        return _persist(db, investigation, session_id, _compare_answer(corpus, question, pair, llm, mode), t0, time.perf_counter())
+        return done(_compare_answer(corpus, question, pair, llm, mode), time.perf_counter())
 
     on_stage("retrieving", "Searching the documents")
     eff = contextualize(question, prior, retriever)
@@ -134,7 +160,7 @@ def ask(db: Session, *, session_id: str, investigation: Investigation, question:
                             "rerank": round(h.rerank, 2) if h.rerank is not None else None, "preview": clip(h.chunk.text, 140)} for h in ctx.hits]},
         "timings_ms": {"retrieve": round((t1 - t0) * 1000), "compose": round((t2 - t1) * 1000)},
     }
-    return _persist(db, investigation, session_id, resp, t0, time.perf_counter())
+    return done(resp, time.perf_counter())
 
 
 # ------------------------------------------------------------------------------------------------
