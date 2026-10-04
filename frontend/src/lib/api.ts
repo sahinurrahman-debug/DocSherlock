@@ -75,10 +75,29 @@ export const api = {
 
   documents: {
     list: () => req<DocumentInfo[]>('/api/documents'),
-    upload: (files: File[]) => {
+    /** XMLHttpRequest rather than fetch: it is the only way a browser reports upload progress. */
+    upload: (files: File[], onProgress?: (loaded: number, total: number) => void) => {
       const fd = new FormData()
       files.forEach((f) => fd.append('files', f))
-      return req<UploadResponse>('/api/documents/upload', { method: 'POST', body: fd })
+      return new Promise<UploadResponse>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', BASE + '/api/documents/upload')
+        xhr.setRequestHeader('X-Session-Id', sessionId())
+        xhr.setRequestHeader('Accept', 'application/json')
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded, e.total) }
+        xhr.onerror = () => reject(new ApiError('Network error while uploading - please try again', 0))
+        xhr.onabort = () => reject(new ApiError('Upload cancelled', 0))
+        xhr.ontimeout = () => reject(new ApiError('The upload timed out', 0))
+        xhr.onload = () => {
+          let body: unknown = null
+          try { body = JSON.parse(xhr.responseText) } catch { /* not JSON */ }
+          if (xhr.status >= 200 && xhr.status < 300 && body) { onProgress?.(1, 1); resolve(body as UploadResponse); return }
+          const d = (body as { detail?: unknown } | null)?.detail
+          const msg = typeof d === 'string' ? d : Array.isArray(d) ? d.map((x: { msg?: string }) => x.msg).join('; ') : xhr.statusText || `HTTP ${xhr.status}`
+          reject(new ApiError(msg, xhr.status))
+        }
+        xhr.send(fd)
+      })
     },
     demo: () => req<UploadResponse>('/api/documents/demo', { method: 'POST' }),
     remove: (id: string) => req<void>(`/api/documents/${id}`, { method: 'DELETE' }),

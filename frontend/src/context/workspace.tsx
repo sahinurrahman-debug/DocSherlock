@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, askStream, ApiError } from '../lib/api'
 import { isBusy } from '../lib/format'
-import type { Answer, DocumentInfo, Health, Investigation, Mode, ViewerTarget } from '../lib/types'
+import type { Answer, DocumentInfo, Health, Investigation, Mode, UploadItem, ViewerTarget } from '../lib/types'
 
 export interface Pending { question: string; stage: string; detail: string }
 
@@ -16,6 +16,7 @@ interface Workspace {
   scopeIds: string[] | null          // null => every READY document
   readyDocs: DocumentInfo[]
   upload: (files: File[]) => Promise<void>
+  uploading: UploadItem[]            // files still being sent to the server
   loadDemo: () => Promise<void>
   removeDoc: (id: string) => Promise<void>
   resetAll: () => Promise<void>
@@ -60,6 +61,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [health, setHealth] = useState<Health | null>(null)
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
   const [loadingDocs, setLoadingDocs] = useState(true)
+  const [uploading, setUploading] = useState<UploadItem[]>([])
   const [deselected, setDeselected] = useState<Set<string>>(new Set())
   const [investigations, setInvestigations] = useState<Investigation[]>([])
   const [currentId, setCurrentId] = useState<string | null>(null)
@@ -116,14 +118,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const upload = useCallback(async (files: File[]) => {
     if (!files.length) return
+    const stamp = Date.now()
+    const items: UploadItem[] = files.map((f, i) => ({ id: `${stamp}-${i}-${f.name}`, name: f.name, progress: 0 }))
+    const starts = files.map((_, i) => files.slice(0, i).reduce((n, f) => n + f.size, 0))     // the files travel one after another in one request
+    const total = files.reduce((n, f) => n + f.size, 0)
+    setUploading((u) => [...u, ...items])
+    const onProgress = (loaded: number, all: number) => {
+      const sent = all ? (loaded / all) * total : 0
+      setUploading((u) => u.map((it) => {
+        const i = items.findIndex((x) => x.id === it.id)
+        if (i < 0) return it
+        const size = files[i].size
+        return { ...it, progress: size === 0 ? (sent >= starts[i] ? 1 : 0) : Math.min(1, Math.max(0, (sent - starts[i]) / size)) }
+      }))
+    }
     try {
-      const r = await api.documents.upload(files)
+      const r = await api.documents.upload(files, onProgress)
       setDocuments(r.documents)
       for (const x of r.results) {
         if (!x.ok) toast(`${x.filename}: ${x.error}`)
         else if (x.duplicate) toast(x.message)
       }
-    } catch (e) { toast(errText(e)) }
+    } catch (e) { toast(errText(e)) } finally {
+      const ids = new Set(items.map((x) => x.id))
+      setUploading((u) => u.filter((it) => !ids.has(it.id)))
+    }
   }, [toast])
 
   const loadDemo = useCallback(async () => {
@@ -224,7 +243,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [currentId, toast])
 
   const value: Workspace = {
-    health, documents, loadingDocs, refreshDocuments, deselected, toggleDoc, selectAll, scopeIds, readyDocs, upload, loadDemo, removeDoc, resetAll, setDate,
+    health, documents, loadingDocs, refreshDocuments, deselected, toggleDoc, selectAll, scopeIds, readyDocs, upload, uploading, loadDemo, removeDoc, resetAll, setDate,
     investigations, currentId, thread, pending, mode, setMode, ask, newInvestigation, openInvestigation, renameInvestigation, deleteInvestigation,
     setPinned, setNote, exportReport, viewer, openSource: setViewer, closeViewer: () => setViewer(null), toast, toasts,
   }

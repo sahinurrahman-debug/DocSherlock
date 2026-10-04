@@ -2,6 +2,13 @@
 
 export type DocStatus = 'UPLOADED' | 'PROCESSING' | 'EXTRACTING' | 'OCR' | 'CHUNKING' | 'EMBEDDING' | 'INDEXING' | 'READY' | 'FAILED'
 
+/** A file that is still travelling from the browser to the server (progress is 0..1). */
+export interface UploadItem {
+  id: string
+  name: string
+  progress: number
+}
+
 export interface DocumentInfo {
   id: string
   filename: string
