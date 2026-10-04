@@ -325,7 +325,7 @@ def _pdf(data: bytes, on_stage=None) -> Extracted:
         if needs_ocr and ocr.available():
             if on_stage and not ocr_pages:
                 on_stage("OCR")
-            pix = page.get_pixmap(dpi=200)
+            pix = page.get_pixmap(dpi=settings.ocr_render_dpi)
             png = pix.tobytes("png")
             lines, w, h = ocr.ocr_image_bytes(png)
             otext, boxes, conf = ocr.lines_to_text(lines)

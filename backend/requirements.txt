@@ -12,7 +12,6 @@ psycopg[binary]>=3.2
 qdrant-client>=1.12
 fastembed>=0.4          # dense (bge-small), sparse BM25 and cross-encoder reranker - run locally on CPU
 numpy>=1.26
-scikit-learn>=1.4       # character n-gram index
 
 # --- documents / OCR --------------------------------------------------------------------
 pymupdf>=1.24

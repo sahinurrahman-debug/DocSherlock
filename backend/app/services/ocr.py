@@ -54,7 +54,11 @@ def _get_engine():
             try:
                 from rapidocr import RapidOCR  # type: ignore
                 logging.getLogger("RapidOCR").setLevel(logging.WARNING)
-                _engine = RapidOCR(params={"Global.log_level": "warning"})
+                params = {"Global.log_level": "warning"}
+                if settings.ocr_threads:
+                    params["EngineConfig.onnxruntime.intra_op_num_threads"] = settings.ocr_threads
+                    params["EngineConfig.onnxruntime.inter_op_num_threads"] = 1
+                _engine = RapidOCR(params=params)
             except Exception as exc:  # pragma: no cover - depends on environment
                 _engine_error = f"OCR engine unavailable ({exc.__class__.__name__}: {exc}). Install `rapidocr`."
                 log.warning(_engine_error)
@@ -78,8 +82,8 @@ def ocr_pil(img, np=None, ImageOps=None) -> tuple[list[OcrLine], int, int]:
     img = ImageOps.exif_transpose(img)
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
-    if max(img.size) > MAX_SIDE:
-        scale = MAX_SIDE / max(img.size)
+    if max(img.size) > settings.ocr_max_side:
+        scale = settings.ocr_max_side / max(img.size)
         img = img.resize((int(img.width * scale), int(img.height * scale)))
     w, h = img.size
     engine = _get_engine()

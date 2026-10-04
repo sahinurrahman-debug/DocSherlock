@@ -8,6 +8,7 @@ from __future__ import annotations
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,7 +19,9 @@ from app.services.claims import fact_from_dict
 from app.services.conflict_detector import ConflictEngine, cluster_conflicts
 from app.services.embeddings import EmbeddingService
 from app.services.retriever import HybridRetriever, LexicalIndex
-from app.services.vectorstore import VectorStore
+
+if TYPE_CHECKING:
+    from app.services.vectorstore import VectorStore
 
 
 @dataclass

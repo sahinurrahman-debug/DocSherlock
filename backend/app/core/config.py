@@ -4,7 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     max_upload_mb: float = 40.0
     max_pdf_pages: int = 300
     ocr_enabled: bool = True
+    ocr_max_side: int = 2600                 # longest image side (px) fed to OCR - smaller = less RAM, slightly lower accuracy
+    ocr_threads: int = 0                     # ONNX threads for OCR (0 = library default); 1 uses noticeably less memory
+    ocr_render_dpi: int = 200                # resolution scanned PDF pages are rendered at before OCR
+    low_memory: bool = False                 # one switch for 512 MB hosts (free tiers): keyword retrieval, lighter OCR, one worker
     ingest_mode: str = "async"               # async (background worker) | sync (tests)
     ingest_workers: int = 2
     chunk_target_chars: int = 650
@@ -78,6 +82,17 @@ class Settings(BaseSettings):
     frontend_dist: Path = ROOT_DIR / "frontend" / "dist"
     host: str = "127.0.0.1"
     port: int = 8000
+
+    @model_validator(mode="after")
+    def _low_memory_preset(self):
+        if self.low_memory:
+            self.dense_enabled = False
+            self.rerank_enabled = False
+            self.ocr_max_side = min(self.ocr_max_side, 1100)
+            self.ocr_threads = 1
+            self.ocr_render_dpi = min(self.ocr_render_dpi, 130)
+            self.ingest_workers = 1
+        return self
 
     # ---- helpers ---------------------------------------------------------------------------
     @property

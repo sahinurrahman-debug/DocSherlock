@@ -22,7 +22,6 @@ from app.services.facts import extract_quantities
 from app.services.generator import compose_llm
 from app.services.llm import LLMClient, LLMError, LLMRateLimited, get_llm
 from app.services.uncertainty import level_for
-from app.services.vectorstore import get_vector_store
 from app.utils.text import clip
 
 log = logging.getLogger("docsherlock.qa")
@@ -69,7 +68,11 @@ def ask(db: Session, *, session_id: str, investigation: Investigation, question:
 
     prior = [{"question": q.question, "answer": q.answer} for q in investigation.questions[-3:]]
     emb = get_embeddings()
-    retriever = corpus.retriever(emb, get_vector_store())
+    store = None
+    if settings.dense_enabled:
+        from app.services.vectorstore import get_vector_store      # lazy: the Qdrant client costs ~120 MB, unused in keyword-only mode
+        store = get_vector_store()
+    retriever = corpus.retriever(emb, store)
 
     # ---- comparison questions ("what changed between the 2022 and 2024 policies?") -------------------
     pair = comparison.resolve_documents(question, corpus)

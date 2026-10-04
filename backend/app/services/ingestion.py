@@ -27,12 +27,16 @@ from app.services.chunker import chunk_document
 from app.services.claims import claim_row, extract_claims
 from app.services.corpus import corpus_cache
 from app.services.embeddings import EmbeddingService, get_embeddings
-from app.services.vectorstore import get_vector_store
 
 log = logging.getLogger("docsherlock.ingest")
 
 STAGES = ["UPLOADED", "PROCESSING", "EXTRACTING", "OCR", "CHUNKING", "EMBEDDING", "INDEXING", "READY", "FAILED"]
 PROGRESS = {"UPLOADED": 5, "PROCESSING": 8, "EXTRACTING": 20, "OCR": 35, "CHUNKING": 55, "EMBEDDING": 72, "INDEXING": 90, "READY": 100, "FAILED": 100}
+
+
+def get_vector_store():
+    from app.services.vectorstore import get_vector_store as _get      # lazy import (see qa.py)
+    return _get()
 
 
 class IngestError(Exception):
@@ -273,6 +277,8 @@ def _process(db: Session, doc: Document) -> None:
 
 def reconcile_vectors() -> int:
     """Self-healing: documents flagged as indexed whose vectors are gone (wiped Qdrant volume / ephemeral disk / new cluster) are re-queued."""
+    if not settings.dense_enabled:
+        return 0
     store = get_vector_store()
     db = SessionLocal()
     n = 0
@@ -326,7 +332,8 @@ def backfill_vectors() -> int:
 def delete_document(db: Session, doc: Document) -> None:
     sid = doc.session_id
     try:
-        get_vector_store().delete_document(doc.id)
+        if settings.dense_enabled:
+            get_vector_store().delete_document(doc.id)
     except Exception as exc:
         log.warning("vector delete failed for %s: %s", doc.id, exc)
     p = file_path(doc)

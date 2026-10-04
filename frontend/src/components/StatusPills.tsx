@@ -16,9 +16,11 @@ export function StatusPills() {
       <Pill tone={h.llm.available ? 'ok' : 'warn'} title={h.llm.available ? `LLM: ${h.llm.model} (Groq). Falls back to the rule-based engine if the LLM fails.` : 'No GROQ_API_KEY configured - answers come from the rule-based engine.'}>
         {h.llm.available ? `Groq · ${h.llm.model?.split('/').pop()}` : 'Rule-based engine'}
       </Pill>
-      <Pill tone={h.vector_store.ok ? 'ok' : 'bad'} title={`Qdrant (${h.vector_store.mode}) · collection ${h.vector_store.collection}`}>
-        Qdrant {h.vector_store.mode === 'server' ? '' : '· local'}
-      </Pill>
+      {h.vector_store.mode !== 'disabled' && (
+        <Pill tone={h.vector_store.ok ? 'ok' : 'bad'} title={`Qdrant (${h.vector_store.mode}) · collection ${h.vector_store.collection}`}>
+          Qdrant {h.vector_store.mode === 'server' ? '' : '· local'}
+        </Pill>
+      )}
       <Pill tone={semantic} title={`${dense.name}${dense.error ? ' - ' + dense.error : ''}`}>
         {dense.ready ? 'Semantic search' : dense.loading ? 'Loading models…' : dense.enabled ? 'Models pending' : 'Keyword search'}
       </Pill>

@@ -15,7 +15,6 @@ from app.models.document import Claim, Document, Page
 from app.schemas.document import ClaimOut, DocumentOut, DocumentPatch, PageOut, PageResponse, UploadResponse, UploadResult
 from app.services import ingestion
 from app.services.render import render_page
-from app.services.vectorstore import get_vector_store
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 SAMPLE_DIR = ROOT_DIR / "sample-documents" / "corpus"
@@ -84,10 +83,12 @@ def delete_document(doc: Document = Depends(owned_document), db: Session = Depen
 def reset_workspace(session_id: str = Depends(get_session_id), db: Session = Depends(get_db)):
     for d in _list(db, session_id):
         ingestion.delete_document(db, d)
-    try:
-        get_vector_store().delete_session(session_id)
-    except Exception:
-        pass
+    if settings.dense_enabled:
+        try:
+            from app.services.vectorstore import get_vector_store
+            get_vector_store().delete_session(session_id)
+        except Exception:
+            pass
     return Response(status_code=204)
 
 

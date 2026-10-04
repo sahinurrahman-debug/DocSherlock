@@ -10,13 +10,16 @@ import logging
 import math
 from collections import Counter
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from app.core.config import settings
 from app.domain import Chunk
 from app.services.embeddings import EmbeddingService
-from app.services.vectorstore import VectorStore
+
+if TYPE_CHECKING:                                    # the Qdrant client is only imported when semantic search is enabled
+    from app.services.vectorstore import VectorStore
 from app.utils.text import STOPWORDS, content_stems, question_stems, stem, tokenize
 
 log = logging.getLogger("docsherlock.retrieval")
@@ -74,6 +77,51 @@ def relevance_score(coverage: float, char_cos: float, dense_cos: float | None) -
     return 0.8 * coverage + 0.2 * min(1.0, char_cos * 2.0)
 
 
+class CharNgramIndex:
+    """Character n-gram TF-IDF cosine (word-bounded 3-5 grams, sublinear tf, smooth idf, L2-normalised) - a drop-in, dependency-free
+    equivalent of scikit-learn's TfidfVectorizer(analyzer="char_wb") for a few thousand passages. Saves ~130 MB of RAM."""
+
+    def __init__(self, texts: list[str]):
+        docs = [Counter(self._grams(t)) for t in texts]
+        df: Counter = Counter()
+        for c in docs:
+            df.update(c.keys())
+        n = len(texts)
+        self.idf = {g: math.log((1 + n) / (1 + d)) + 1.0 for g, d in df.items()}
+        self.n = n
+        self.post: dict[str, list[tuple[int, float]]] = {}
+        for i, c in enumerate(docs):
+            w = {g: (1.0 + math.log(tf)) * self.idf[g] for g, tf in c.items()}
+            norm = math.sqrt(sum(v * v for v in w.values())) or 1.0
+            for g, v in w.items():
+                self.post.setdefault(g, []).append((i, v / norm))
+
+    @staticmethod
+    def _grams(text: str, lo: int = 3, hi: int = 5):
+        for word in " ".join(text.lower().split()).split():
+            w = f" {word} "
+            for k in range(lo, hi + 1):
+                off = 0
+                yield w[off:off + k]
+                while off + k < len(w):
+                    off += 1
+                    yield w[off:off + k]
+                if off == 0:
+                    break
+
+    def scores(self, query: str) -> np.ndarray:
+        out = np.zeros(self.n)
+        q = {g: (1.0 + math.log(tf)) * self.idf[g] for g, tf in Counter(self._grams(query)).items() if g in self.idf}
+        norm = math.sqrt(sum(v * v for v in q.values()))
+        if not norm:
+            return out
+        for g, v in q.items():
+            qv = v / norm
+            for i, w in self.post[g]:
+                out[i] += qv * w
+        return out
+
+
 class LexicalIndex:
     """In-memory BM25 + char n-gram index over the chunks of one scope (a session and, optionally, a subset of documents)."""
 
@@ -85,11 +133,7 @@ class LexicalIndex:
         for tf in self._tf:
             self._df.update(tf.keys())
         self._avgdl = (sum(len(t) for t in self._tokens) / len(self._tokens)) if self._tokens else 1.0
-        self._vec = self._mat = None
-        if chunks:
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            self._vec = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), sublinear_tf=True, min_df=1, lowercase=True)
-            self._mat = self._vec.fit_transform([c.index_text for c in chunks])
+        self._chars = CharNgramIndex([c.index_text for c in chunks]) if chunks else None
 
     def idf(self, term: str) -> float:
         n = len(self.chunks)
@@ -132,8 +176,8 @@ class LexicalIndex:
                     s += w * self.idf(t) * (f * (k1 + 1)) / (f + k1 * (1 - b + b * dl / self._avgdl))
             bm[i] = s
         char = np.zeros(n)
-        if self._vec is not None and terms:
-            char = (self._mat @ self._vec.transform([question]).T).toarray().ravel()
+        if self._chars is not None and terms:
+            char = self._chars.scores(question)
         return bm, char
 
     def coverage(self, terms: list[str], i: int) -> float:

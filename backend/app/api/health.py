@@ -8,7 +8,6 @@ from app.core import database
 from app.core.config import settings
 from app.services import ocr
 from app.services.embeddings import get_embeddings
-from app.services.vectorstore import get_vector_store
 
 router = APIRouter(tags=["health"])
 
@@ -23,11 +22,15 @@ def health():
         db_ok = True
     except Exception:
         db_ok = False
-    try:
-        qdrant_ok = get_vector_store().healthy()
-        mode = get_vector_store().mode
-    except Exception:
-        qdrant_ok, mode = False, "unavailable"
+    if not settings.dense_enabled:
+        qdrant_ok, mode = True, "disabled"                 # keyword-only mode: no vector store is loaded
+    else:
+        try:
+            from app.services.vectorstore import get_vector_store
+            qdrant_ok = get_vector_store().healthy()
+            mode = get_vector_store().mode
+        except Exception:
+            qdrant_ok, mode = False, "unavailable"
     ready = db_ok and qdrant_ok
     return {
         "status": "healthy" if ready else "degraded", "service": "docsherlock", "version": __version__,

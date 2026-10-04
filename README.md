@@ -87,13 +87,16 @@ use `json_object` mode with the schema in the prompt. Either way the output is v
 
 Full step-by-step guide: **[docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md)**. Short version:
 
+**All-free, all-on-Render setup (default `render.yaml`):** one free web service (UI + API) + Render free PostgreSQL (expires after 30 days; Neon is a no-expiry alternative) + Groq free tier.
+
 1. Push this repo to GitHub.
-2. **Qdrant Cloud** (free cluster): create a cluster at https://cloud.qdrant.io, copy the URL and API key.
-3. Render → **New → Blueprint** → select the repo (`render.yaml` creates the web service + PostgreSQL).
-4. In the service's *Environment* tab set `GROQ_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`.
-5. Pick an instance with **≥ 2 GB RAM** (embeddings + reranker + OCR need ~1-1.5 GB). On a 512 MB instance set `DENSE_ENABLED=false`
-   (keyword-only retrieval, ~300 MB) - everything else still works.
-6. Open the URL → **Load the sample set**.
+2. Create a Groq key.
+3. Render → **New → Blueprint** → select the repo. It creates the free web service (`LOW_MEMORY=true`) and the free PostgreSQL, already linked.
+4. In the service's *Environment* tab set `GROQ_API_KEY`.
+5. Open the URL → **Load the sample set**. A free service sleeps after ~15 min idle (≈1 min to wake).
+
+`LOW_MEMORY=true` turns off embeddings + reranker (keyword retrieval, no Qdrant) and shrinks OCR - measured **peak ~360 MB** on the sample set, so it fits Render's 512 MB.
+With ≥ 2 GB RAM (paid) leave it `false` for semantic search + reranking (measured ~700 MB steady, ~1.0 GB peak) and optionally add Qdrant Cloud.
 
 The Dockerfile builds the React app into the image, so one service serves UI + API, bakes the models into the image, and runs a single process.
 
@@ -189,7 +192,7 @@ run `python eval/run_eval.py --llm` (with `GROQ_API_KEY`) to measure the real th
   number *words* are parsed only next to units ("sixty days"); cross-currency / non-time unit conversion is not attempted.
 * The rule-based fallback returns supporting sentences, not synthesised prose, and cannot reason about yes/no questions.
 * Groq free-tier limits (see §2); `gpt-oss` models spend reasoning tokens - `GROQ_REASONING_EFFORT=low` keeps latency and token use down.
-* Memory: ~1-1.5 GB with embeddings + reranker + OCR loaded. Single process by design (in-process worker pool, corpus cache, embedded-Qdrant mode).
+* Memory: ~700 MB steady / ~1.0 GB peak with embeddings + reranker + OCR; `LOW_MEMORY=true` peaks at ~360 MB (measured; see docs/DEPLOY_RENDER.md). Single process by design (in-process worker pool, corpus cache, embedded-Qdrant mode).
 * No user accounts; workspaces are anonymous browser sessions. No Alembic migrations yet.
 * PDF tables / multi-column layouts rely on PyMuPDF heuristics; charts are not interpreted.
 
