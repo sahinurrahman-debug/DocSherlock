@@ -13,8 +13,8 @@ export function ConflictAlert({ cluster, showHeader = false }: { cluster: Confli
     <div className="space-y-3">
       {showHeader && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${SEV[cluster.severity]}`}>{cluster.severity}</span>
-          <span className="text-[15px] font-bold">{cluster.topic.slice(0, 3).join(' · ') || 'Disputed point'}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${SEV[cluster.severity]}`}>{cluster.severity}</span>
+          <span className="text-base font-bold">{cluster.topic.slice(0, 3).join(' · ') || 'Disputed point'}</span>
           <span className="chip">{cluster.value_kind || cluster.kind}</span>
           {cluster.same_document && <span className="chip">same document</span>}
           {cluster.time_scoped && <span className="chip !bg-warn-soft !text-warn">time-scoped</span>}
@@ -22,25 +22,25 @@ export function ConflictAlert({ cluster, showHeader = false }: { cluster: Confli
       )}
       <div className={`grid gap-2.5 sm:grid-cols-2 ${cluster.positions.length > 2 ? 'xl:grid-cols-3' : ''}`}>
         {cluster.positions.map((p, i) => (
-          <div key={i} className={`rounded-lg border border-line border-t-[3px] bg-surface p-3 ${BORDER[i % BORDER.length]}`}>
-            <div className="break-words text-[17px] font-bold leading-snug">{cluster.kind === 'assertion' ? `Position ${String.fromCharCode(65 + i)}` : p.value}</div>
+          <div key={i} className={`rounded-2xl border border-line border-t-[3px] bg-surface p-4 shadow-[var(--shadow-card)] ${BORDER[i % BORDER.length]}`}>
+            <div className="break-words font-display text-2xl font-semibold leading-snug">{cluster.kind === 'assertion' ? `Position ${String.fromCharCode(65 + i)}` : p.value}</div>
             {p.sources.map((s, j) => (
-              <div key={j} className="mt-2 border-t border-dashed border-line pt-2 first:mt-2 text-[12.5px]">
+              <div key={j} className="mt-2 border-t border-dashed border-line pt-2 first:mt-2 text-sm">
                 <div className="flex flex-wrap items-center gap-1">
                   <button className="font-semibold hover:text-brand hover:underline" onClick={() => open(s)}>{s.doc_name}</button>
                   {s.doc_date && <span className="text-muted">· {s.doc_date}</span>}
                   {s.cite && <CiteChip id={s.cite} onClick={() => open(s)} />}
                 </div>
-                <q className="mt-0.5 block text-muted [quotes:'“'_'”']">{s.sentence}</q>
-                <div className="text-[11px] text-muted">{[s.page ? `p.${s.page}` : null, s.section ? `§ ${s.section}` : null].filter(Boolean).join(' · ')}</div>
+                <q className="mt-1 block text-base leading-relaxed text-muted [quotes:'“'_'”']">{s.sentence}</q>
+                <div className="text-xs text-muted">{[s.page ? `p.${s.page}` : null, s.section ? `§ ${s.section}` : null].filter(Boolean).join(' · ')}</div>
               </div>
             ))}
           </div>
         ))}
       </div>
       {cluster.resolution && (
-        <div className="rounded-lg border-l-[3px] border-l-warn bg-warn-soft px-3 py-2.5 text-[13px]">
-          <div className="mb-0.5 text-[10.5px] font-bold uppercase tracking-wider text-warn">What might explain it · inference, not stated in the documents</div>
+        <div className="rounded-xl border-l-[3px] border-l-warn bg-warn-soft px-4 py-3 text-sm">
+          <div className="mb-0.5 text-xs font-bold uppercase tracking-wider text-warn">What might explain it · inference, not stated in the documents</div>
           <RichText text={cluster.resolution} />
         </div>
       )}

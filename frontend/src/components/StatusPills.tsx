@@ -2,13 +2,13 @@ import { useWorkspace } from '../context/workspace'
 
 function Pill({ tone, children, title }: { tone: 'ok' | 'warn' | 'none' | 'bad'; children: React.ReactNode; title?: string }) {
   const cls = { ok: 'bg-ok-soft text-ok', warn: 'bg-warn-soft text-warn', none: 'bg-none-soft text-none', bad: 'bg-bad-soft text-bad' }[tone]
-  return <span title={title} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}><i className="inline-block h-1.5 w-1.5 rounded-full bg-current" />{children}</span>
+  return <span title={title} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}><i className="inline-block h-1.5 w-1.5 rounded-full bg-current" />{children}</span>
 }
 
 /** Live system status: which engine answers, whether OCR / vector search / models are ready. */
 export function StatusPills() {
   const { health: h } = useWorkspace()
-  if (!h) return <Pill tone="none">Connecting…</Pill>
+  if (!h) return <span className="inline-flex items-center gap-2 text-xs text-muted"><span className="dot-pulse" aria-hidden="true"><i /></span>Connecting…</span>
   const dense = h.models.dense
   const semantic = dense.ready ? 'ok' : dense.loading ? 'warn' : dense.enabled ? 'warn' : 'none'
   return (

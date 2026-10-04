@@ -5,7 +5,7 @@ export function CiteChip({ id, onClick, muted = false }: { id: string; onClick?:
   return (
     <button
       type="button" onClick={onClick} title={`Open source ${id}`}
-      className={`mx-0.5 inline-flex min-w-[18px] items-center justify-center rounded-md px-1 py-0.5 align-[1px] text-[10.5px] font-bold leading-none transition ${muted ? 'bg-none-soft text-none' : 'bg-brand-soft text-brand'} hover:bg-brand hover:text-brand-ink`}
+      className={`mx-0.5 inline-flex min-w-6 items-center justify-center rounded-md px-1.5 py-1 align-[1px] text-xs font-bold leading-none transition ${muted ? 'bg-none-soft text-none' : 'bg-brand-soft text-brand'} hover:bg-brand hover:text-brand-ink`}
     >
       {id.replace(/^S/, '')}
     </button>
@@ -36,5 +36,5 @@ export function RichText({ text, onCite }: { text: string; onCite?: (id: string)
     else { flush(i); out.push(<p key={i} className="mb-2 last:mb-0"><Inline toks={b.toks} onCite={onCite} /></p>) }
   })
   flush(bs.length)
-  return <div className="text-[14px] leading-relaxed">{out}</div>
+  return <div className="text-[1.0625rem] leading-8">{out}</div>
 }

@@ -67,7 +67,7 @@ describe('AnswerCard', () => {
 
   it('shows engine provenance, OCR quality and opens the cited passage', async () => {
     render(<AnswerCard a={answered} />)
-    expect(screen.getByText('$1,000,000', { selector: 'div' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '$1,000,000' })).toBeInTheDocument()
     expect(screen.getByText(/gpt-oss-120b · quotes verified/)).toBeInTheDocument()
     expect(screen.getByText('OCR 82%')).toBeInTheDocument()
     await userEvent.click(screen.getByText('Agreement.pdf'))

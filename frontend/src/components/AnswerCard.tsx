@@ -39,27 +39,27 @@ export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?:
 
   return (
     <article className="card overflow-hidden" data-testid="answer-card" data-status={a.status} data-level={a.level}>
-      <div className={`flex flex-wrap items-center gap-2 px-4 py-2 text-[13px] font-semibold ${TONE_CLASS[tone]}`}>
+      <div className={`flex flex-wrap items-center gap-2 px-5 py-3 text-sm font-semibold ${TONE_CLASS[tone]}`}>
         <span aria-hidden>{b.icon}</span><span>{b.text}</span>
         <span className="ml-auto flex flex-wrap items-center gap-1.5"><EngineTag a={a} /><ConfidenceBadge level={a.level} /></span>
       </div>
 
-      <div className="space-y-4 px-4 py-3.5">
-        {a.headline && a.status !== 'insufficient' && <div className="text-[22px] font-bold leading-tight tracking-tight">{a.headline}</div>}
+      <div className="space-y-5 px-5 py-5">
+        {a.headline && a.status !== 'insufficient' && <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">{a.headline}</h2>}
         {!a.comparison && <RichText text={a.status === 'conflict' && a.conflicts.length ? (a.answer.split('\n')[0] ?? a.answer) : a.answer} onCite={onCite} />}
         {a.conflicts.map((c) => <ConflictAlert key={c.id} cluster={c} />)}
         {a.comparison && <ComparisonView result={a.comparison} />}
         <EvidenceMatrix rows={a.evidence_matrix} citations={a.citations} />
-        {a.missing_terms.length > 0 && a.status === 'insufficient' && <p className="text-[12.5px] text-muted">Terms that appear in none of your documents: <b>{a.missing_terms.join(', ')}</b></p>}
+        {a.missing_terms.length > 0 && a.status === 'insufficient' && <p className="text-sm text-muted">Terms that appear in none of your documents: <b>{a.missing_terms.join(', ')}</b></p>}
         {a.caveats.length > 0 && (
-          <ul className="space-y-1 rounded-lg bg-warn-soft px-3 py-2 text-[12.5px] text-ink">{a.caveats.map((c, i) => <li key={i} className="flex gap-2"><span className="text-warn">⚠</span><span>{c}</span></li>)}</ul>
+          <ul className="space-y-1.5 rounded-xl bg-warn-soft px-4 py-3 text-sm text-ink">{a.caveats.map((c, i) => <li key={i} className="flex gap-2"><span className="text-warn">⚠</span><span>{c}</span></li>)}</ul>
         )}
         <WhyPanel level={a.level} reasons={a.confidence.reasons} />
       </div>
 
       {a.citations.length > 0 && (
-        <div className="border-t border-line px-4 py-3">
-          <div className="eyebrow mb-1">Sources {supporting.length ? `(${supporting.length})` : ''}</div>
+        <div className="border-t border-line px-5 py-4">
+          <div className="eyebrow mb-2">Sources {supporting.length ? `(${supporting.length})` : ''}</div>
           {supporting.map((c) => <CitationCard key={c.id} c={c} />)}
           {leads.length > 0 && <div className="eyebrow mb-1 mt-2">Closest passages - shown for orientation only</div>}
           {leads.map((c) => <CitationCard key={c.id} c={c} />)}
@@ -77,17 +77,17 @@ export function AnswerCard({ a, showActions = true }: { a: Answer; showActions?:
       )}
 
       {showActions && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
           <button className={`btn btn-sm ${a.pinned ? '!border-brand !text-brand' : ''}`} aria-pressed={a.pinned} onClick={() => void setPinned(a, !a.pinned)}>{a.pinned ? '📌 Pinned' : '📌 Pin'}</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setNoting((n) => !n)}>{a.note ? '✎ Edit note' : '✎ Add note'}</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setTrace((t) => !t)}>{trace ? 'Hide trace' : 'How was this found?'}</button>
-          <span className="ml-auto text-[11px] text-muted">{a.timings_ms.total ?? ''} ms</span>
+          <span className="ml-auto text-xs text-muted">{a.timings_ms.total ?? ''} ms</span>
           {noting && (
             <textarea autoFocus defaultValue={a.note} placeholder="Your note (saved to the report)…" rows={2} maxLength={2000}
               onBlur={(e) => { if (e.target.value !== a.note) void setNote(a, e.target.value) }}
-              className="mt-1 w-full rounded-lg border border-line bg-surface p-2 text-[13px]" />
+              className="mt-1 w-full rounded-lg border border-line bg-surface p-2 text-sm" />
           )}
-          {!noting && a.note && <p className="w-full text-[12.5px] italic text-muted">“{a.note}”</p>}
+          {!noting && a.note && <p className="w-full text-sm italic text-muted">“{a.note}”</p>}
         </div>
       )}
     </article>

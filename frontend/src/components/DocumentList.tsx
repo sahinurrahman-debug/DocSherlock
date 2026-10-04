@@ -1,7 +1,10 @@
 import { useWorkspace } from '../context/workspace'
 import { isBusy, pct } from '../lib/format'
 import type { DocumentInfo } from '../lib/types'
+import { EmptyState } from './EmptyState'
+import { PapersIllustration } from './illustrations'
 import { ProcessingStepper } from './ProcessingStepper'
+import { Skeleton } from './Skeleton'
 
 export function DocDateChip({ doc }: { doc: DocumentInfo }) {
   const { setDate } = useWorkspace()
@@ -24,7 +27,7 @@ function DocItem({ doc }: { doc: DocumentInfo }) {
   const { deselected, toggleDoc, removeDoc, openSource } = useWorkspace()
   const ready = doc.status === 'READY'
   return (
-    <li className={`rounded-lg border bg-surface p-2.5 ${doc.status === 'FAILED' ? 'border-bad/50' : 'border-line'}`}>
+    <li className={`pop rounded-xl border bg-surface p-3 transition duration-200 hover:shadow-[var(--shadow-card)] ${doc.status === 'FAILED' ? 'border-bad/50' : 'border-line'}`}>
       <div className="flex items-start gap-2">
         <input
           type="checkbox" className="mt-1 accent-[var(--color-brand)]" disabled={!ready} checked={ready && !deselected.has(doc.id)}
@@ -32,8 +35,8 @@ function DocItem({ doc }: { doc: DocumentInfo }) {
         />
         <button className="min-w-0 flex-1 text-left" disabled={!ready} onClick={() => openSource({ docId: doc.id, docName: doc.filename, page: 1 })}>
           <div className="flex items-center gap-1.5">
-            <span className="rounded bg-brand-soft px-1 py-px text-[10px] font-bold uppercase text-brand">{doc.file_type.replace('.', '')}</span>
-            <span className="break-all text-[13px] font-semibold leading-tight">{doc.filename}</span>
+            <span className="rounded-md bg-brand-soft px-1.5 py-0.5 text-xs font-bold uppercase text-brand">{doc.file_type.replace('.', '')}</span>
+            <span className="break-all text-sm font-semibold leading-snug">{doc.filename}</span>
           </div>
         </button>
         <button className="px-1 text-muted hover:text-bad" aria-label={`Remove ${doc.filename}`} onClick={() => void removeDoc(doc.id)}>×</button>
@@ -49,19 +52,19 @@ function DocItem({ doc }: { doc: DocumentInfo }) {
           <DocDateChip doc={doc} />
         </div>
       )}
-      {doc.warnings.slice(0, 2).map((w) => <div key={w} className="mt-1 text-[11px] text-warn">⚠ {w}</div>)}
+      {doc.warnings.slice(0, 2).map((w) => <div key={w} className="mt-1 text-xs text-warn">⚠ {w}</div>)}
     </li>
   )
 }
 
 export function DocumentList() {
   const { documents, loadingDocs, readyDocs, selectAll, deselected } = useWorkspace()
-  if (loadingDocs) return <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-surface-2" />)}</div>
-  if (!documents.length) return <p className="py-2 text-[13px] text-muted">No documents yet. Upload some, or load the sample set to try DocSherlock right away.</p>
+  if (loadingDocs) return <div className="space-y-2" role="status" aria-label="Loading documents">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-[4.5rem]" />)}</div>
+  if (!documents.length) return <EmptyState compact art={<PapersIllustration />} title="Nothing here yet">Drop a file above, or load the sample set to see DocSherlock in action.</EmptyState>
   return (
     <div>
       {readyDocs.length > 1 && (
-        <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted">
+        <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
           <span>{readyDocs.length - deselected.size} of {readyDocs.length} in scope</span>
           {deselected.size > 0 && <button className="text-brand underline" onClick={selectAll}>include all</button>}
         </div>

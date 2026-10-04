@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../context/workspace'
 import { AnswerCard } from './AnswerCard'
+import { EmptyState } from './EmptyState'
+import { AskIllustration, PapersIllustration } from './illustrations'
 
 const STAGES: Record<string, string> = {
   retrieving: 'Searching your documents', checking_conflicts: 'Checking evidence and conflicts', reasoning: 'Reasoning over the evidence',
@@ -32,30 +34,34 @@ export function ChatPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="scroll-thin min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">
         {thread.length === 0 && !pending && (
-          <div className="mx-auto mt-[4vh] max-w-2xl text-center">
-            <h1 className="text-2xl font-bold tracking-tight">What do you want to find out?</h1>
-            <p className="mx-auto mt-2 max-w-xl text-[13.5px] text-muted">Answers come only from your documents, with the exact passage cited. When documents disagree you get every position - not a guess. When they don't say, you get “not found”.</p>
-            {noDocs ? (
-              <div className="mt-5"><button className="btn btn-primary" onClick={() => void loadDemo()}>Load the sample set</button><p className="mt-2 text-xs text-muted">or upload your own documents on the left</p></div>
-            ) : (
-              <div className="mt-5 flex flex-wrap justify-center gap-2">{suggestions.map((s) => <button key={s} className="rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] hover:border-brand hover:text-brand" onClick={() => void ask(s)}>{s}</button>)}</div>
-            )}
-          </div>
+          noDocs ? (
+            <EmptyState className="mt-[3vh]" art={<PapersIllustration />} title="Let's start with some documents"
+              actions={<><button className="btn btn-primary" onClick={() => void loadDemo()}>Load the sample set</button></>}>
+              Add a few files on the left - or try the sample set - and then ask anything. Answers come only from your documents, with the exact passage cited.
+            </EmptyState>
+          ) : (
+            <div className="rise mx-auto mt-[3vh] max-w-2xl text-center">
+              <div className="mx-auto w-40"><AskIllustration /></div>
+              <h1 className="mt-2 text-3xl font-semibold">What do you want to find out?</h1>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-muted">Ask in your own words. If documents disagree you'll see every position - never a guess. If they simply don't say, you'll hear that too.</p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2.5">{suggestions.map((s, i) => <button key={s} style={{ '--i': i } as React.CSSProperties} className="rise rounded-full border border-line bg-surface px-4 py-2 text-sm transition duration-200 hover:-translate-y-0.5 hover:border-brand hover:text-brand hover:shadow-[var(--shadow-card)] active:scale-[.98]" onClick={() => void ask(s)}>{s}</button>)}</div>
+            </div>
+          )
         )}
         {thread.map((a) => (
-          <section key={a.id} className="space-y-2.5">
-            <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand px-3.5 py-2 text-[14px] font-medium text-brand-ink">{a.question}</div></div>
+          <section key={a.id} className="rise space-y-3">
+            <div className="flex justify-end"><div className="pop max-w-[85%] rounded-3xl rounded-br-md bg-brand px-5 py-3 text-base font-medium text-brand-ink shadow-[var(--shadow-card)]">{a.question}</div></div>
             <AnswerCard a={a} />
           </section>
         ))}
         {pending && (
-          <section className="space-y-2.5" aria-live="polite">
-            <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand px-3.5 py-2 text-[14px] font-medium text-brand-ink">{pending.question}</div></div>
-            <div className="card px-4 py-3">
-              <div className="dot-pulse mb-2"><i /><i /><i /></div>
-              <ol className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px]">
+          <section className="fade space-y-3" aria-live="polite">
+            <div className="flex justify-end"><div className="pop max-w-[85%] rounded-3xl rounded-br-md bg-brand px-5 py-3 text-base font-medium text-brand-ink shadow-[var(--shadow-card)]">{pending.question}</div></div>
+            <div className="card px-5 py-4">
+              <div className="dot-pulse mb-3" aria-hidden="true"><i /><i /><i /></div>
+              <ol className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
                 {ORDER.filter((s) => s !== 'comparing' || pending.stage === 'comparing').filter((s) => s !== 'composing' || pending.stage === 'composing').map((s) => {
                   const idx = ORDER.indexOf(pending.stage)
                   const state = ORDER.indexOf(s) < idx ? 'done' : s === pending.stage ? 'now' : 'todo'
@@ -68,17 +74,18 @@ export function ChatPanel() {
         <div ref={end} />
       </div>
 
-      <form className="border-t border-line bg-bg px-4 pb-3 pt-2.5" onSubmit={(e) => { e.preventDefault(); submit() }}>
-        <div className="mb-1.5 flex flex-wrap items-center gap-x-3 text-[11.5px] text-muted">
+      <form className="border-t border-line bg-surface/80 px-4 pb-4 pt-3 backdrop-blur-md sm:px-6" onSubmit={(e) => { e.preventDefault(); submit() }}>
+        <div className="mb-2 flex flex-wrap items-center gap-x-4 text-xs text-muted">
           <span>Scope: <b className="text-ink">{scopeIds ? `${scopeIds.length} of ${readyDocs.length} documents` : `all ${readyDocs.length} ready documents`}</b></span>
-          <span>{health?.llm.available ? 'Groq answers, rule-based fallback' : 'Rule-based answers (add GROQ_API_KEY for LLM answers)'}</span>
+          <span className="hidden sm:inline">Enter to send · Shift+Enter for a new line</span>
+          <span>{health?.llm.available ? 'Groq answers, rule-based fallback' : 'Rule-based answers (add a Groq key for LLM answers)'}</span>
         </div>
         <div className="flex items-end gap-2">
           <textarea ref={area} value={q} onChange={(e) => setQ(e.target.value)} rows={1} maxLength={1500} disabled={noDocs}
-            placeholder={noDocs ? 'Upload or load documents to start' : 'Ask a question about your documents…  (Enter to send · Shift+Enter for a new line)'}
+            placeholder={noDocs ? 'Add documents to start asking' : 'Ask about your documents…'}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() } }}
-            className="max-h-36 min-h-[42px] flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2.5 text-[14px] disabled:opacity-60" aria-label="Your question" />
-          <button type="submit" className="btn btn-primary h-[42px] px-5" disabled={busy || noDocs || !q.trim()}>{busy ? 'Working…' : 'Investigate'}</button>
+            className="field max-h-36 min-h-12 flex-1 resize-none !rounded-2xl disabled:opacity-60" aria-label="Your question" />
+          <button type="submit" className="btn btn-primary !h-12 !rounded-2xl !px-6" disabled={busy || noDocs || !q.trim()}>{busy ? 'Thinking…' : 'Ask'}</button>
         </div>
       </form>
     </div>

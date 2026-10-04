@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '../lib/api'
 import { pct } from '../lib/format'
 import type { PageData, ViewerTarget } from '../lib/types'
+import { Skeleton } from './Skeleton'
 
 function useBlobUrl(load: () => Promise<Blob>, deps: unknown[]) {
   const [url, setUrl] = useState<string | null>(null)
@@ -37,8 +38,8 @@ export function SourceViewer({ target, onPage }: { target: ViewerTarget; onPage:
   useEffect(() => { if (view === 'text') mark.current?.scrollIntoView({ block: 'center' }) }, [view, data])
   useEffect(() => { if (data && !data.page.has_image) setView('text') }, [data])
 
-  if (err) return <p className="p-4 text-[13px] text-bad">{err}</p>
-  if (!data) return <div className="space-y-2 p-4"><div className="h-4 w-1/2 animate-pulse rounded bg-surface-2" /><div className="h-64 animate-pulse rounded bg-surface-2" /></div>
+  if (err) return <p className="p-4 text-sm text-bad">{err}</p>
+  if (!data) return <div className="space-y-3 p-4" role="status" aria-label="Loading page"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-72" /></div>
   const { page, document: doc } = data
   const text = page.text
   const hasQuote = target.start != null && target.end != null && target.start >= 0 && target.end > target.start && target.end <= text.length
@@ -57,7 +58,7 @@ export function SourceViewer({ target, onPage }: { target: ViewerTarget; onPage:
         {doc.doc_date && <span className="chip">dated {doc.doc_date}</span>}
         <button className="ml-auto text-brand underline" onClick={() => void api.documents.original(doc.id, doc.filename)}>original</button>
       </div>
-      {target.quote && <div className="rounded-lg border-l-[3px] border-l-brand bg-brand-soft px-3 py-2 text-[13px]">“{target.quote}”</div>}
+      {target.quote && <div className="rounded-lg border-l-[3px] border-l-brand bg-brand-soft px-3 py-2 text-sm">“{target.quote}”</div>}
       {page.has_image && (
         <div className="inline-flex overflow-hidden rounded-lg border border-line text-xs" role="tablist">
           {(['image', 'text'] as const).map((v) => (
@@ -66,12 +67,12 @@ export function SourceViewer({ target, onPage }: { target: ViewerTarget; onPage:
         </div>
       )}
       {page.has_image && view === 'image' && (
-        img.err ? <p className="text-[13px] text-bad">{img.err}</p>
+        img.err ? <p className="text-sm text-bad">{img.err}</p>
           : img.url ? <img src={img.url} alt={`Page ${page.number} of ${doc.filename} with the cited passage highlighted`} className="w-full rounded-lg border border-line bg-white" />
-          : <div className="h-72 animate-pulse rounded-lg bg-surface-2" />
+          : <Skeleton className="h-72" />
       )}
       {view === 'text' && (
-        <div className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3 font-mono text-[12.5px] leading-relaxed">
+        <div className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3 font-mono text-sm leading-relaxed">
           {hasQuote ? <>{text.slice(0, target.start)}<mark ref={mark} className="rounded bg-mark px-0.5 text-ink">{text.slice(target.start, target.end)}</mark>{text.slice(target.end)}</> : text || '(no text extracted)'}
         </div>
       )}

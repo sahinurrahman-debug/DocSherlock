@@ -22,23 +22,23 @@ export default function Investigation() {
 
   const tabBtn = (t: Tab, label: string, badge?: number) => (
     <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-      className={`border-b-2 px-3.5 py-2 text-[13px] font-semibold transition ${tab === t ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
-      {label}{badge ? <span className="ml-1.5 rounded-full bg-surface-2 px-1.5 py-px text-[10px] text-muted">{badge}</span> : null}
+      className={`relative -mb-px border-b-2 px-4 py-3 text-sm font-semibold transition duration-200 ${tab === t ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
+      {label}{badge ? <span className="ml-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{badge}</span> : null}
     </button>
   )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex gap-1 border-b border-line bg-surface p-1.5 lg:hidden" role="tablist" aria-label="Workspace panes">
-        {([['docs', 'Documents'], ['main', 'Investigate'], ['source', 'Source']] as const).map(([p, l]) => (
-          <button key={p} role="tab" aria-selected={pane === p} onClick={() => setPane(p)} className={`flex-1 rounded-md py-1.5 text-[13px] font-medium ${pane === p ? 'bg-brand-soft text-brand' : 'text-muted'}`}>{l}</button>
+      <div className="flex gap-1 border-b border-line bg-surface p-2 lg:hidden" role="tablist" aria-label="Workspace panes">
+        {([['docs', 'Files'], ['main', 'Workspace'], ['source', 'Source']] as const).map(([p, l]) => (
+          <button key={p} role="tab" aria-selected={pane === p} onClick={() => setPane(p)} className={`flex-1 rounded-xl py-2 text-sm font-medium transition duration-200 ${pane === p ? 'bg-brand-soft text-brand' : 'text-muted'}`}>{l}</button>
         ))}
       </div>
 
-      <div className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] ${rightOpen ? 'xl:grid-cols-[300px_minmax(0,1fr)_minmax(340px,32%)]' : ''}`}>
-        <aside className={`scroll-thin min-h-0 space-y-5 overflow-y-auto border-r border-line bg-bg p-3 ${pane === 'docs' ? 'block' : 'hidden'} lg:block`} aria-label="Documents and investigations">
+      <div className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] ${rightOpen ? 'xl:grid-cols-[320px_minmax(0,1fr)_minmax(360px,32%)]' : ''}`}>
+        <aside className={`scroll-thin min-h-0 space-y-5 overflow-y-auto border-r border-line bg-bg/60 p-4 ${pane === 'docs' ? 'block' : 'hidden'} lg:block`} aria-label="Documents and investigations">
           <section>
-            <div className="mb-2 flex items-center justify-between"><span className="eyebrow">Documents</span>{documents.length > 0 && <button className="text-[11px] text-muted hover:text-bad" onClick={() => { if (window.confirm('Remove all documents from this workspace?')) void resetAll() }}>clear all</button>}</div>
+            <div className="mb-2 flex items-center justify-between"><span className="eyebrow">Documents</span>{documents.length > 0 && <button className="text-sm text-muted transition hover:text-bad" onClick={() => { if (window.confirm('Remove all documents from this workspace?')) void resetAll() }}>clear all</button>}</div>
             <FileUploader compact />
             <div className="mt-3"><DocumentList /></div>
           </section>
@@ -46,15 +46,15 @@ export default function Investigation() {
         </aside>
 
         <main className={`flex min-h-0 min-w-0 flex-col ${pane === 'main' ? 'flex' : 'hidden'} lg:flex`}>
-          <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-3 pt-1" role="tablist" aria-label="Investigation views">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface/80 px-4 backdrop-blur-md" role="tablist" aria-label="Investigation views">
             {tabBtn('ask', 'Ask')}{tabBtn('conflicts', 'Conflict board')}{tabBtn('compare', 'Compare')}
-            <div className="ml-auto flex items-center gap-2 pb-1">
+            <div className="ml-auto flex items-center gap-2 py-1.5">
               {name && <span className="hidden max-w-[220px] truncate text-xs text-muted md:inline" title={name}>{name}</span>}
               <button className="btn btn-sm" onClick={() => void exportReport(false)} disabled={!currentId} title="Download a Markdown report of this investigation">Export report</button>
               {!rightOpen && <button className="btn btn-sm hidden xl:inline-flex" onClick={() => setRightOpen(true)}>Show sources</button>}
             </div>
           </div>
-          <div className="min-h-0 flex-1">
+          <div key={tab} className="fade min-h-0 flex-1">
             {tab === 'ask' && <ChatPanel />}
             {tab === 'conflicts' && <div className="scroll-thin h-full overflow-y-auto"><ConflictBoard onAsk={(q) => { setTab('ask'); void ask(q) }} /></div>}
             {tab === 'compare' && <div className="scroll-thin h-full overflow-y-auto"><ComparePanel /></div>}

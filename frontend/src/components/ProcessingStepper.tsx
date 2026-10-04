@@ -15,7 +15,7 @@ export function ProcessingStepper({ status, progress, ocr }: { status: DocStatus
           </div>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-[11px] text-muted">
+      <div className="mt-1 flex justify-between text-xs text-muted">
         <span>{STAGE_LABEL[status]}…</span><span>{progress}%</span>
       </div>
     </div>

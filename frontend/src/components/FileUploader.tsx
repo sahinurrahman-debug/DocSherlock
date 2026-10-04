@@ -16,14 +16,15 @@ export function FileUploader({ compact = false }: { compact?: boolean }) {
         onDragOver={(e) => { e.preventDefault(); setOver(true) }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); void upload([...e.dataTransfer.files]) }}
-        className={`cursor-pointer rounded-xl border-2 border-dashed text-center transition ${compact ? 'px-3 py-4' : 'px-6 py-10'} ${over ? 'border-brand bg-brand-soft' : 'border-line bg-surface-2 hover:border-brand'}`}
+        className={`group cursor-pointer rounded-2xl border-2 border-dashed text-center transition duration-300 ${compact ? 'px-4 py-5' : 'px-6 py-10'} ${over ? 'scale-[1.01] border-brand bg-brand-soft' : 'border-line bg-surface/70 hover:border-brand/60 hover:bg-surface'}`}
       >
         <input ref={input} type="file" multiple hidden accept={accept} onChange={(e) => { void upload([...(e.target.files ?? [])]); e.target.value = '' }} />
-        <div className="font-semibold">Drop files here <span className="font-normal text-muted">or</span> <span className="text-brand underline">browse</span></div>
-        <div className="mt-1 text-[11px] leading-snug text-muted">PDF · DOCX · scans &amp; images (OCR) · TXT / MD · CSV / XLSX · HTML · JSON · EML<br />up to {health?.max_upload_mb ?? 40} MB each</div>
+        <svg viewBox="0 0 24 24" className={`mx-auto mb-2 text-brand transition duration-300 group-hover:-translate-y-0.5 ${compact ? 'h-6 w-6' : 'h-9 w-9'}`} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></svg>
+        <div className="font-medium">Drop files here <span className="font-normal text-muted">or</span> <span className="link">browse</span></div>
+        <div className="mt-1.5 text-xs leading-snug text-muted">PDF · Word · scans &amp; images (OCR) · text · CSV / Excel · HTML · JSON · e-mail<br />up to {health?.max_upload_mb ?? 40} MB each</div>
       </div>
       {documents.length === 0 && (
-        <button className="btn btn-primary mt-2 w-full" onClick={() => void loadDemo()}>Load the sample set (11 files, some contradict)</button>
+        <button className="btn btn-primary mt-3 w-full" onClick={() => void loadDemo()}>Load the sample set (11 files, some contradict)</button>
       )}
     </div>
   )

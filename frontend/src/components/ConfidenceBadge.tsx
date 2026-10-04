@@ -7,7 +7,7 @@ const ICON: Record<Level, string> = { HIGH: '●', MEDIUM: '◐', LOW: '◔', CO
 export function ConfidenceBadge({ level, size = 'md' }: { level: Level; size?: 'sm' | 'md' }) {
   const m = LEVELS[level]
   return (
-    <span title={m.hint} className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${TONE_CLASS[m.tone]} ${size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-[12px]'}`}>
+    <span title={m.hint} className={`inline-flex items-center gap-1.5 rounded-full font-semibold ${TONE_CLASS[m.tone]} ${size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xs'}`}>
       <span aria-hidden>{ICON[level]}</span>{level === 'LOW' || level === 'MEDIUM' || level === 'HIGH' ? level : level === 'CONFLICTED' ? 'CONFLICTED' : 'INSUFFICIENT'}
       <span className="sr-only">{m.label}</span>
     </span>
@@ -25,11 +25,11 @@ export function WhyPanel({ level, reasons }: { level: Level; reasons: Reason[] }
         {open ? 'Hide reasoning' : `Why ${level === 'CONFLICTED' ? 'conflicted' : level === 'INSUFFICIENT' ? 'insufficient' : level.toLowerCase()}?`}
       </button>
       {open && (
-        <ul className="mt-2 space-y-1 rounded-lg bg-surface-2 p-3 text-[12.5px]">
+        <ul className="mt-2 space-y-1 rounded-lg bg-surface-2 p-3 text-sm">
           {reasons.map((r, i) => (
             <li key={i} className="flex gap-2"><span className={`w-3 shrink-0 text-center font-bold ${EFFECT[r.effect]}`}>{r.effect === '=' ? '·' : r.effect}</span><span>{r.text}</span></li>
           ))}
-          <li className="pt-1 text-[11px] text-muted">The level reflects evidence strength (term coverage, semantic match, corroboration, OCR quality, conflicts) - it is not a probability.</li>
+          <li className="pt-1 text-xs text-muted">The level reflects evidence strength (term coverage, semantic match, corroboration, OCR quality, conflicts) - it is not a probability.</li>
         </ul>
       )}
     </div>
